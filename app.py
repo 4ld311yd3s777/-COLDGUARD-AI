@@ -412,60 +412,19 @@ with tab_dash:
 
     m1, m2, m3, m4, m5 = st.columns(5)
 
-    with m1:
-        st.markdown(
-            f"""
-            <div class="metric-col">
-                <div class="metric-label">📦 Tổng Container</div>
-                <div class="metric-val">{total_count}</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+    def render_metric(col, label, val):
+        html_str = f"<div class='metric-col'><div class='metric-label'>{label}</div><div class='metric-val'>{val}</div></div>"
+        with col:
+            if hasattr(st, "html"):
+                st.html(html_str)
+            else:
+                st.markdown(html_str, unsafe_allow_html=True)
 
-    with m2:
-        st.markdown(
-            f"""
-            <div class="metric-col">
-                <div class="metric-label">🟢 Normal</div>
-                <div class="metric-val">{normal_count}</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with m3:
-        st.markdown(
-            f"""
-            <div class="metric-col">
-                <div class="metric-label">🟡 Warning</div>
-                <div class="metric-val">{warning_count}</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with m4:
-        st.markdown(
-            f"""
-            <div class="metric-col">
-                <div class="metric-label">🔴 High Risk</div>
-                <div class="metric-val">{high_count}</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    with m5:
-        st.markdown(
-            f"""
-            <div class="metric-col">
-                <div class="metric-label">⚠️ Risk Score TB</div>
-                <div class="metric-val">{avg_score}</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+    render_metric(m1, "📦 Tổng Container", total_count)
+    render_metric(m2, "🟢 Normal", normal_count)
+    render_metric(m3, "🟡 Warning", warning_count)
+    render_metric(m4, "🔴 High Risk", high_count)
+    render_metric(m5, "⚠️ Risk Score TB", avg_score)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -562,56 +521,51 @@ with tab_dash:
     sorted_df.index = sorted_df.index + 1  # 1-indexed
 
     # Tạo bảng HTML đẹp mắt y hệt ảnh 3
-    table_html = """
-    <table class="custom-table">
-        <thead>
-            <tr>
-                <th style="width: 50px;"></th>
-                <th>Container</th>
-                <th>Nhiệt độ (°C)</th>
-                <th>Độ ẩm (%)</th>
-                <th>Thời gian chờ (giờ)</th>
-                <th>Làm lạnh</th>
-                <th>Risk Score</th>
-                <th>Phân loại</th>
-            </tr>
-        </thead>
-        <tbody>
-    """
+    rows_html = "".join([
+        f"<tr>"
+        f"<td style='color: #64748b; font-weight: 500;'>{idx}</td>"
+        f"<td style='font-weight: 600;'>{row['Container']}</td>"
+        f"<td>{row['Nhiệt độ (°C)']}</td>"
+        f"<td>{row['Độ ẩm (%)']}</td>"
+        f"<td>{row['Thời gian chờ (giờ)']}</td>"
+        f"<td>{row['Làm lạnh']}</td>"
+        f"<td style='font-weight: 600;'>{row['Risk Score']}</td>"
+        f"<td>{row['Phân loại']}</td>"
+        f"</tr>"
+        for idx, row in sorted_df.iterrows()
+    ])
 
-    for idx, row in sorted_df.iterrows():
-        table_html += f"""
-            <tr>
-                <td style="color: #64748b; font-weight: 500;">{idx}</td>
-                <td style="font-weight: 600;">{row['Container']}</td>
-                <td>{row['Nhiệt độ (°C)']}</td>
-                <td>{row['Độ ẩm (%)']}</td>
-                <td>{row['Thời gian chờ (giờ)']}</td>
-                <td>{row['Làm lạnh']}</td>
-                <td style="font-weight: 600;">{row['Risk Score']}</td>
-                <td>{row['Phân loại']}</td>
-            </tr>
-        """
+    table_html = (
+        "<table class='custom-table'>"
+        "<thead><tr>"
+        "<th style='width: 50px;'></th>"
+        "<th>Container</th>"
+        "<th>Nhiệt độ (°C)</th>"
+        "<th>Độ ẩm (%)</th>"
+        "<th>Thời gian chờ (giờ)</th>"
+        "<th>Làm lạnh</th>"
+        "<th>Risk Score</th>"
+        "<th>Phân loại</th>"
+        "</tr></thead>"
+        f"<tbody>{rows_html}</tbody>"
+        "</table>"
+    )
 
-    table_html += """
-        </tbody>
-    </table>
-    """
-    st.markdown(table_html, unsafe_allow_html=True)
+    if hasattr(st, "html"):
+        st.html(table_html)
+    else:
+        st.markdown(table_html, unsafe_allow_html=True)
 
     # Cảnh báo vàng bên dưới bảng
     high_risk_rows = sorted_df[sorted_df["Phân loại"] == "High Risk"]
     if not high_risk_rows.empty:
         high_items = [f"<b>{r['Container']}</b> — Risk Score <b>{r['Risk Score']}</b> — High Risk" for _, r in high_risk_rows.iterrows()]
         alert_text = " | ".join(high_items)
-        st.markdown(
-            f"""
-            <div class="alert-warning-box">
-                ⚠️ Container cần ưu tiên xử lý: {alert_text}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        alert_html = f"<div class='alert-warning-box'>⚠️ Container cần ưu tiên xử lý: {alert_text}</div>"
+        if hasattr(st, "html"):
+            st.html(alert_html)
+        else:
+            st.markdown(alert_html, unsafe_allow_html=True)
 
 # =========================================================
 # 9. TAB 2: CASE STUDY & CHI TIẾT
