@@ -1,0 +1,693 @@
+I. PHẦN MỞ ĐẦU	2
+
+1.1. Lý do chọn đề tài (Đặt vấn đề)	2
+
+1.2. Mục tiêu dự án	3
+
+	1.2.1. Mục tiêu chung	3
+
+	1.2.2. Mục tiêu cụ thể	4
+
+1.3. Đối tượng và phạm vi nghiên cứu	4
+
+1.4. Điểm khác biệt và cốt lõi của giải pháp	4
+
+	II. CƠ SỞ THỰC TIỄN VÀ PHƯƠNG PHÁP TIẾP CẬN	5
+
+2.1. Phân tích các yếu tố rủi ro trong chuỗi lạnh trái cây xuất khẩu	5
+
+2.2. Phương pháp tiếp cận và cấu trúc bộ dữ liệu	5
+
+	2.2.1. Phương pháp tiếp cận	5
+
+	2.2.2. Nguồn thu thập và cấu trúc bộ dữ liệu	6
+
+	2.2.3. Kỹ thuật xây dựng dữ liệu mô phỏng	6
+
+	III. THIẾT KẾ MÔ HÌNH COLD CHAIN PRIORITY DỰA TRÊN COLDGUARD AI	7
+
+3.1. Sơ đồ và luồng vận hành tổng thể	7
+
+	3.1.1. Thu thập dữ liệu	7
+
+	3.1.2. COLDGUARD AI	8
+
+	3.1.3. RISK SCORE	8
+
+	3.1.4. TỪ RISK SCORE → RISK LEVEL	9
+
+	3.1.5. COLD CHAIN PRIORITY – chuyển “rủi ro” thành “mức ưu tiên”	9
+
+	3.1.6. RECOMMENDATION SYSTEM	10
+
+	3.1.7. DASHBOARD – nơi người quản lý nhìn thấy toàn bộ kết quả	11
+
+	3.1.8.  KẾT QUẢ THỰC TẾ – vòng phản hồi	12
+
+	IV. XÂY DỰNG PROTOTYPE VÀ KỊCH BẢN THỬ NGHIỆM	12
+
+4.1. Kiến trúc Prototype COLDGUARD AI	12
+
+4.2. Kịch bản mô phỏng thực tế (Case Study: Xuất khẩu xoài)	13
+
+4.3. Giao diện Dashboard (Dự kiến)	14
+
+	V. TÍNH KHẢ THI, HIỆU QUẢ VÀ HƯỚNG PHÁT TRIỂN	14
+
+   5.1. Tính khả thi của đề tài..................................................................................14
+
+5.1. Hiệu quả kinh tế và xã hội	15
+
+5.2. Hướng phát triển mở rộng	15
+
+	VI. KẾT LUẬN	16
+
+
+
+Cold Chain Priority – Mô hình dự báo rủi ro và phân luồng bảo quản trái cây thông quan tại cửa khẩu quốc tế Lào Cai
+
+I. PHẦN MỞ ĐẦU
+
+1.1. Lý do chọn đề tài (Đặt vấn đề)
+
+* Thực trạng tổn thất chất lượng nông sản (đặc biệt là trái cây) xuất khẩu do ùn tắc và thời gian chờ thông quan kéo dài tại cửa khẩu quốc tế Lào Cai.
+
+ Khi xe chở hàng phải xếp hàng dài và chờ đợi từ vài ngày đến hàng tuần tại khu vực cửa khẩu, chất lượng trái cây bị ảnh hưởng nghiêm trọng trên nhiều phương diện: Biến đổi sinh hóa và chín ép, tỷ lệ hao hụt lớn, hình thức sản phẩm giảm chất lượng... Dẫn đến các hệ lụy thương mại như: Nguy cơ bị từ chối thông quan và trả hàng, bị ép giá và tụt hạng và nhiều vấn đề phát sinh khác ảnh hưởng trực tiếp đến giá trị đơn hàng và tổn thất uy tín của nhà phân phối.
+
+Bảng 1.1 Tóm tắt tác động theo nhóm mặt hàng trái cây tiêu biểu
+
+Nhóm trái cây
+
+Đặc tính 
+
+Biểu hiện tổn thất khi ùn tắc
+
+Mức độ 
+thiệt hại
+
+Sầu riêng, Mít
+
+Tỏa nhiệt mạnh, nhạy cảm với khí ethylene.
+
+Nứt vỏ, thối cuống, thịt quả bị nhão và chua do lên men.
+
+Rất cao
+
+Thanh long
+
+Dễ mất nước, nhạy cảm về ngoại quan.
+
+Tai quả bị héo, thâm đen; vỏ bị mất màu, xuất hiện đốm nấm mốc.
+
+Cao
+
+Vải thiều, Nhãn
+
+Khó bảo quản, thời gian thối hỏng rất nhanh.
+
+Vỏ chuyển màu nâu đen, chảy nước, thối rữa chỉ sau 3–5 ngày chờ.
+
+Đặc biệt nghiêm trọng
+
+Dưa hấu
+
+Dễ dập nát do va đập và sức nén.
+
+Ủ dột, nứt vỡ, thối rữa từ phần đáy quả.
+
+Cao
+
+
+
+*Hạn chế của các hệ thống giám sát chuỗi lạnh hiện tại: Các doanh nghiệp logistics chủ yếu dùng cảm biến IoT để theo dõi nhiệt độ, độ ẩm và vị trí nhưng chỉ mang tính chất báo động khi vấn đề đang xảy ra (giám sát và phản ứng).
+
+- Hệ lụy từ tính thụ động của cảm biến IoT hiện tại: Khi cảm biến gửi cảnh báo "Nhiệt độ container vượt 15°C", thực tế là hệ thống làm lạnh đã hỏng trước đó vài tiếng hoặc xe đã bị tắt máy lạnh quá lâu. Với trái cây nhạy cảm như sầu riêng hay vải thiều, vài giờ chờ tín hiệu cảnh báo nhiệt độ đã có thể làm giảm chất lượng của quả cũng như gây ảnh hưởng tới quá trình vận chuyển tiếp theo.
+- Hạn chế nắm bắt tình trạng thực tế của sản phẩm: Cảm biến thông thường chỉ báo cáo thông số môi trường (Nhiệt độ, Độ ẩm), nhưng không cho biết chất lượng bên trong quả đang biến đổi thế nào. Doanh nghiệp không thể biết lô hàng này khi đến tay đối tác sẽ còn bao nhiêu ngày đạt chuẩn, dẫn đến việc không thể tối ưu hóa thứ tự thông quan.
+
+- Tổn thất nghiêm trọng tại cửa khẩu: Khi xe bị kẹt trong bãi chờ dài ngày tại Lào Cai, việc nhận cảnh báo "Thùng xe đang nóng lên" không giúp tài xế giải quyết được gốc rễ vấn đề nếu xung quanh không có thợ sửa điện, thiếu nhiên liệu dự phòng, hoặc bãi đỗ không có trạm sạc
+
+*Nhu cầu cấp thiết: Cần một mô hình hỗ trợ ra quyết định, dự báo được "container nào có khả năng gặp vấn đề trong thời gian tới" và "cần ưu tiên xử lý container nào trước" để chủ động ngăn ngừa rủi ro.
+
+ Để khắc phục hạn chế này nhóm chúng em đưa ra đề xuất Cold Chain Priority – Mô hình dự báo rủi ro và phân luồng bảo quản trái cây thông quan tại cửa khẩu quốc tế Lào Cai 
+
+1.2. Mục tiêu dự án
+
+1.2.1. Mục tiêu chung
+
+ Dự án nhằm nghiên cứu và xây dựng "Cold Chain Priority" – Mô hình chuyển dịch từ giám sát thụ động sang dự báo rủi ro chủ động thông qua thuật toán học máy (Machine Learning) và mô hình sinh học. Dự án hướng đến việc hỗ trợ các lực lượng chức năng tại cửa khẩu Quốc tế Lào Cai và các doanh nghiệp logistics tối ưu hóa quy trình phân luồng, ưu tiên thông quan và có phương án bảo quản kịp thời cho các xe container chở trái cây xuất khẩu. Từ đó, mục tiêu tối thượng là giảm tỷ lệ tổn thất chất lượng xuống mức thấp nhất, bảo vệ giá trị thương mại và nâng cao uy tín cho nông sản Việt Nam tại thị trường quốc tế.
+
+
+
+1.2.2. Mục tiêu cụ thể
+
+Để đạt được mục tiêu tổng quát trên, mô hình tập trung giải quyết 4 mục tiêu cụ thể sau:
+
+- Xây dựng Bộ dữ liệu chuỗi lạnh quy mô lớn: Thiết lập cấu trúc kho dữ liệu tích hợp đa nguồn từ các cảm biến IoT bên trong container lạnh (Nhiệt độ, Độ ẩm, nồng độ khí Ethylene), Đồng bộ dữ liệu động bên ngoài theo thời gian thực bao gồm: Thời gian xe xếp hàng chờ đợi thực tế tại bãi kiểm hóa Lào Cai, dữ liệu thời tiết và nhiệt độ môi trường tại vùng biên giới, cùng các đặc tính sinh học của 4 nhóm trái cây trọng điểm (Sầu riêng/Mít, Thanh long, Vải thiều/Nhãn, Dưa hấu).
+
+- Phát triển Mô hình AI dự báo rủi ro: Cold Chain Priority
+
+- Thiết lập Hệ thống khuyến nghị thông minh: Cung cấp khuyến nghị phân luồng ưu tiên thông quan dựa trên các chỉ số rủi ro ở 3 mức độ: Cao, Trung bình, Thấp.
+
+- Thiết kế Giao diện quản lý trực quan Dashboard: Đảm bảo hệ thống hiển thị trực quan bằng các biểu đồ trực quan, hệ thống cảnh báo màu sắc (Xanh - Vàng - Đỏ) tương ứng với các cấp độ nguy cơ của nông sản.
+
+1.3. Đối tượng và phạm vi nghiên cứu
+
+- Đối tượng: Trái cây xuất khẩu gồm nhóm trái cây trọng điểm (Sầu riêng/Mít, Thanh long, Vải thiều/Nhãn, Dưa hấu).
+
+- Phạm vi: Dữ liệu chuỗi lạnh từ quá trình vận chuyển đến khi chờ thông quan tại cửa khẩu quốc tế Lào Cai.
+
+1.4. Điểm khác biệt và cốt lõi của giải pháp
+
+Dự án nhằm nghiên cứu và xây dựng "Cold Chain Priority" – Mô hình chuyển dịch từ giám sát thụ động sang dự báo rủi ro chủ động thông qua thuật toán học máy (Machine Learning) và mô hình sinh học. Dự án hướng đến việc hỗ trợ các lực lượng chức năng tại cửa khẩu Quốc tế Lào Cai và các doanh nghiệp logistics tối ưu hóa quy trình phân luồng, ưu tiên thông quan và có phương án bảo quản kịp thời cho các xe container chở trái cây xuất khẩu. Từ đó, mục tiêu tối thượng là giảm tỷ lệ tổn thất chất lượng xuống mức thấp nhất, bảo vệ giá trị thương mại và nâng cao uy tín cho nông sản Việt Nam tại thị trường quốc tế.
+
+ Chuyển đổi mô hình quản trị chuỗi lạnh từ “giám sát và phản ứng” (Container bất thường → Cảnh báo) sang “dự báo và chủ động ra quyết định” (Dữ liệu → AI → Dự báo nguy cơ → Xếp hạng ưu tiên → Đề xuất xử lý).
+
+
+
+II. CƠ SỞ THỰC TIỄN VÀ PHƯƠNG PHÁP TIẾP CẬN
+
+2.1. Phân tích các yếu tố rủi ro trong chuỗi lạnh trái cây xuất khẩu
+
+Sự suy giảm chất lượng trái cây tươi trong quá trình vận chuyển không chỉ đến từ một nguyên nhân đơn lẻ mà là kết quả cộng gộp của chuỗi rủi ro liên hoàn. Dựa trên thực tiễn thông quan tại cửa khẩu, các nhóm rủi ro chính được phân tích chuyên sâu như sau:
+
+Rủi ro về kỹ thuật và thiết bị bảo quản :
+
+Mất điện container: Xảy ra khi chuyển giao giữa các phương tiện vận tải, thiếu bãi cắm điện tại khu vực chờ thông quan hoặc sự cố máy nén.
+
+Dao động nhiệt độ và độ ẩm bất thường: Hệ thống làm lạnh hoạt động không ổn định hoặc cửa container bị mở ra kiểm tra nhiều lần khiến nhiệt độ tăng đột ngột, phá vỡ dải nhiệt độ tối ưu của trái cây.
+
+Rủi ro về quy trình Logistics và thời gian thông quan:
+
+Ùn tắc và thời gian chờ kéo dài: Đặc thù thông quan biên mậu thường gặp tình trạng ùn ứ xe tải vào các mùa vụ thu hoạch rộ hoặc do thay đổi chính sách kiểm dịch của nước nhập khẩu. Thời gian chờ tại cảng/cửa khẩu quá lâu làm giảm độ tươi dinh dưỡng của trái cây.
+
+Thời gian vận chuyển thực tế sai lệch: Xe di chuyển chậm do hạ tầng giao thông hoặc điều kiện thời tiết xấu, làm kéo dài thời gian lưu hàng trên xe.
+
+Rủi ro sinh học đặc thù của nông sản:
+
+Trái cây tươi (như xoài, thanh long, chuối) vẫn tiếp tục quá trình hô hấp sinh lý và sinh ra khí Ethylene sau khi thu hoạch. Khi gặp các cú "sốc nhiệt" (do nhiệt độ tăng), cường độ hô hấp tăng vọt khiến trái cây chín nhanh, mềm nhũn và dễ nhiễm nấm mốc.
+
+2.2. Phương pháp tiếp cận và cấu trúc bộ dữ liệu 
+
+2.2.1. Phương pháp tiếp cận
+
+Đề tài sử dụng phương pháp tiếp cận Dẫn dắt bằng dữ liệu kết hợp với Học máy. Việc xử lý dữ liệu sẽ trải qua quy trình nghiêm ngặt từ thu thập, làm sạch, đến trực quan hóa bằng các công cụ chuyên sâu như Tableau để khám phá các mẫu (patterns) ẩn, tìm ra sự tương quan giữa thời gian chờ, biến động nhiệt độ và chất lượng hàng hóa trước khi đưa vào huấn luyện AI.
+
+2.2.2. Nguồn thu thập và cấu trúc bộ dữ liệu
+
+Để mô hình AI dự báo chính xác, bộ dữ liệu được tổng hợp đa chiều từ các nguồn công khai và hệ thống IoT, bao gồm 5 nhóm chính:
+
+Dữ liệu vĩ mô & xuất khẩu: Mức sản lượng, giá trị hàng hóa, và nhịp độ xuất khẩu theo thị trường để dự báo lưu lượng xe đổ về cửa khẩu. (Tham khảo Nguồn: Tổng cục Hải quan, Bộ Công Thương).
+
+Dữ liệu điều hành Logistics cửa khẩu: Thời gian lưu bãi trung bình, công suất xử lý thông quan của cảng/cửa khẩu, thời gian chờ thực tế của các phương tiện. (Tham khảo Nguồn: Ban quản lý khu kinh tế cửa khẩu).
+
+Dữ liệu môi trường: Dữ liệu chuỗi thời gian thực (Real-time) về nhiệt độ và độ ẩm môi trường tại khu vực cửa khẩu. (Tham khảo Nguồn: API từ các trạm quan trắc khí tượng).
+
+Dữ liệu năng lực Doanh nghiệp: Sức chứa tối đa của kho lạnh hiện hữu, cơ sở vật chất (số lượng bãi cắm điện cho container lạnh), năng lực điều phối logistics.
+
+Dữ liệu IoT cảm biến: Đây là dữ liệu cốt lõi, bao gồm nhật ký (log) về nhiệt độ, độ ẩm bên trong container, thời gian hành trình và thời gian lưu bãi tĩnh.
+
+2.2.3. Kỹ thuật xây dựng dữ liệu mô phỏng 
+
+Trong bối cảnh bảo mật thương mại, việc tiếp cận toàn bộ dữ liệu cảm biến IoT thực tế của doanh nghiệp logistics là một thách thức lớn. Để khắc phục, dự án áp dụng kỹ thuật tạo Dữ liệu mô phỏng (Synthetic Data). Quá trình này được thực hiện như sau:
+
+Thiết lập tham số cơ sở: Dựa trên các tiêu chuẩn bảo quản thực tế của một loại trái cây cụ thể (ví dụ: Xoài xuất khẩu cần nhiệt độ 10-12°C, độ ẩm 85-90%).
+
+Tạo kịch bản rủi ro: Sử dụng các hàm phân phối thống kê để tạo ra các kịch bản nhiễu động giả định sát với thực tế. Ví dụ: Sinh ra các dòng dữ liệu mô phỏng tình trạng kẹt xe làm thời gian chờ tăng thêm 24-48 giờ, hoặc kịch bản máy làm lạnh ngắt quãng khiến nhiệt độ nhích lên 0.5°C mỗi giờ.
+
+Gán nhãn dữ liệu: Từ các kịch bản mô phỏng, thuật toán sẽ tự động gán nhãn mức độ tổn thất giả định (Bình thường / Cảnh báo / Suy giảm nghiêm trọng) để làm tập dữ liệu huấn luyện cho mô hình AI phía sau. Dữ liệu mô phỏng này sẽ được minh bạch hóa hoàn toàn trong báo cáo đề án.
+
+
+
+III. THIẾT KẾ MÔ HÌNH COLD CHAIN PRIORITY DỰA TRÊN COLDGUARD AI
+
+Mô hình này muốn trả lời 2 câu hỏi:
+
+Câu 1: Container nào có nguy cơ suy giảm chất lượng cao?
+→ ColdGuard AI trả lời.
+
+Câu 2: Container nào cần được ưu tiên xử lý trước?
+→ Cold Chain Priority trả lời.
+
+ Đây chính là mối quan hệ cốt lõi của mô hình. Tài liệu của bạn cũng xác định Cold Chain Priority là mô hình quản lý/ra quyết định, còn ColdGuard AI là bộ phận phân tích/dự báo
+
+3.1. Sơ đồ và luồng vận hành tổng thể
+
+Data → ColdGuard AI → Risk Score → Cold Chain Priority → Recommendation → Dashboard → Feedback
+
+3.1.1. Thu thập dữ liệu
+
+Đầu tiên, hệ thống phải biết tình trạng thực tế của từng container.
+
+Có thể chia thành 5 nhóm:
+
+
+
+Nhóm 1 – Đặc điểm hàng hóa
+
+Loại trái cây 
+
+Mức độ nhạy cảm với nhiệt độ 
+
+Nhiệt độ bảo quản yêu cầu 
+
+Nhóm 2 – Nhiệt độ
+
+Nhiệt độ yêu cầu 
+
+Nhiệt độ thực tế 
+
+Độ lệch nhiệt độ 
+
+
+
+
+
+Nhóm 3 – Thời gian
+
+Thời gian vận chuyển 
+
+Thời gian chờ tại cửa khẩu 
+
+Thời gian bảo quản còn lại 
+
+
+
+Nhóm 4 – Điều kiện môi trường
+
+Độ ẩm 
+
+Thời tiết 
+
+Điều kiện kho/bãi 
+
+Nhiệt độ khu vực chờ 
+
+Nhóm 5 – Tình trạng container
+
+Container hoạt động bình thường. 
+
+Hệ thống lạnh có vấn đề. 
+
+Cửa container không kín. 
+
+Thiết bị theo dõi nhiệt độ có vấn đề. 
+
+
+
+Tất cả những dữ liệu này tạo thành “hồ sơ rủi ro” của một container.
+
+Sau khi thu thập dữ liệu xong cần tiền xử lí dữ liệu: 
+
+Làm sạch → chuẩn hóa → xử lý dữ liệu thiếu → chuyển dữ liệu về định dạng phù hợp
+
+Sau bước này, dữ liệu mới được đưa cho ColdGuard AI.
+
+3.1.2. COLDGUARD AI
+
+ Dữ liệu sau khi đưa vào COLDGUARD AI thì AI sẽ sử dụng dữ liệu lịch sử để học: để tìm ra các mối quan hệ giữa các yếu tố trên với chất lượng sản phẩm
+
+Vd: Khi thời gian chờ tăng, nhiệt độ lệch khỏi mức yêu cầu, hạn sử dụng còn ít... thì xác suất hàng bị suy giảm chất lượng tăng bao nhiêu?
+
+“Trong những điều kiện như thế nào thì hàng có nguy cơ suy giảm chất lượng?”
+
+AI sẽ tìm ra các mối quan hệ trong dữ liệu.
+
+Ví dụ: Thời gian chờ càng dài → nguy cơ tăng.
+
+Độ lệch nhiệt độ càng lớn → nguy cơ tăng.
+
+Hạn bảo quản còn càng ngắn → nguy cơ tăng.
+
+Chờ lâu + nhiệt độ lệch + hàng còn ít thời gian bảo quản = rủi ro đặc biệt cao.
+
+ Đưa dữ liệu thực tế vào mô hình-> AI/ML xác định mức độ ảnh hưởng của từng biến.
+
+Thông qua học máy, thuật toán….
+
+VÍ DỤ MINH HỌA:  kết quả mô hình: (còn đâu khi PHÂN TÍCH PHẢI đưa số liệu vào)
+
+Nhiệt độ: 36%
+
+Thời gian chờ: 31%
+
+Hạn bảo quản: 18%
+
+Đặc tính sản phẩm: 15%
+
+3.1.3. RISK SCORE
+
+Sau khi phân tích, ColdGuard AI đưa ra một Risk Score từ 0–100.
+
+AI biến “nguy cơ” thành con số
+
+Ví dụ: C01 → Risk Score = 22
+
+C02 → Risk Score = 61
+
+C03 → Risk Score = 87
+
+Có thể hiểu: Risk Score càng cao → nguy cơ suy giảm chất lượng càng lớn.
+
+Nhưng ở đây cần nhớ một điều: Risk Score không có nghĩa là “87% hàng sẽ hỏng”.
+
+Nếu mô hình của bạn chưa được xây dựng để dự báo xác suất thì 87 chỉ là điểm rủi ro, không phải xác suất 87%.
+
+3.1.4. TỪ RISK SCORE → RISK LEVEL
+
+Sau khi có điểm, ta phân thành các mức:
+
+Risk Score
+
+Risk Level
+
+0–39
+
+🟢 Low
+
+40–69
+
+🟡 Medium
+
+70–100
+
+🔴 High
+
+3.1.5. COLD CHAIN PRIORITY – chuyển “rủi ro” thành “mức ưu tiên”
+
+Risk Score
+
+Mức rủi ro
+
+Priority
+
+Xử lý
+
+0–39
+
+🟢 Thấp
+
+P3
+
+Bình thường
+
+40–69
+
+🟡 Trung bình
+
+P2
+
+Tăng giám sát + bố trí bảo quản
+
+70–100
+
+🔴 Cao
+
+P1
+
+Ưu tiên xử lý + kho lạnh
+
+Sau khi ColdGuard AI nói: “C03 có Risk = 87.”
+
+Nhưng người quản lý cần biết: “Vậy C03 có cần xử lý trước không?”
+
+Cold Chain Priority sẽ chuyển: Risk Level → Priority Level
+
+Ví dụ : Risk = 89 → High Risk→ Priority 1→ hệ thống đề xuất: Ưu tiên kiểm tra/hoàn tất thủ tục → đưa vào khu vực bảo quản lạnh → hạn chế tiếp tục chờ ngoài điều kiện bảo quản phù hợp.
+
+Ngoài ra cần XÁC ĐỊNH NGUYÊN NHÂN RỦI RO, Hai container có cùng Risk Score, nhưng không có nghĩa chúng phải được xử lý giống nhau
+
+VD:  C01 = Risk 85                                           C02 = Risk 8
+
+C01
+
+AI phát hiện rủi ro chủ yếu do:
+
+🌡️ Nhiệt độ lệch cao
+
+→ Vấn đề chính là chuỗi lạnh.
+
+C02
+
+AI phát hiện rủi ro chủ yếu do:
+
+⏱️ Thời gian chờ quá dài
+
+→ Vấn đề chính là thời gian xử lý.
+
+
+
+Do đó:Risk Score cho biết “nguy hiểm đến đâu”.
+
+Nhưng:Risk Cause cho biết “nguy hiểm vì cái gì”.
+
+Đây là sự khác biệt rất quan trọng.
+
+3.1.6. RECOMMENDATION SYSTEM – dựa vào cả “mức độ” và “nguyên nhân”
+
+Đây là bước nối trực tiếp từ phân tích sang hành động
+
+Risk Level + Nguyên nhân chính → Khuyến nghị phù hợp.
+
+
+
+Trường hợp 1
+
+Risk = 85
+
+Nguyên nhân chính:
+
+Nhiệt độ lệch.
+
+→ Hệ thống đề xuất:
+
+Ưu tiên xử lý. 
+
+Đưa vào khu vực bảo quản lạnh. 
+
+Kiểm tra hệ thống lạnh/container. 
+
+Tăng tần suất giám sát nhiệt độ.
+
+Trường hợp 2
+
+Risk = 85
+
+Nguyên nhân chính:
+
+Thời gian chờ quá dài.
+
+→ Hệ thống đề xuất:
+
+P1. 
+
+Ưu tiên hoàn tất các bước xử lý. 
+
+Hạn chế tiếp tục chờ. 
+
+Theo dõi thời gian còn lại của hàng.
+
+-> Như vậy Recommendation System không chỉ đưa ra cảnh báo chung chung mà đưa ra hành động theo nguyên nhân.
+
+3.1.7. DASHBOARD – nơi người quản lý nhìn thấy toàn bộ kết quả
+
+Cuối cùng, tất cả thông tin được đưa lên Dashboard.
+
+Chúng em đề xuất Dashboard có 3 khu vực:
+
+*Khu vực 1 – Tổng quan
+
+Hiển thị:
+
+Tổng số container 
+
+Số container P1 
+
+Số container P2 
+
+Số container P3 
+
+Số cảnh báo
+
+*Khu vực 2 – Danh sách container cần chú ý
+
+Container
+
+Risk
+
+Priority
+
+Nguyên nhân chính
+
+Hành động
+
+C03
+
+87
+
+P1
+
+Nhiệt độ
+
+Kho lạnh
+
+C07
+
+81
+
+P1
+
+Chờ lâu
+
+Ưu tiên xử lý
+
+C12
+
+62
+
+P2
+
+Hạn bảo quản
+
+Tăng giám sát
+
+phần quan trọng nhất của Dashboard.
+
+*Khu vực 3 – Cảnh báo
+
+Ví dụ:
+
+🔴 C03: Nhiệt độ vượt mức yêu cầu.
+
+🔴 C07: Thời gian chờ vượt ngưỡng cảnh báo.
+
+🟡 C12: Thời gian bảo quản còn lại thấp.
+
+Người quản lý có thể nhìn vào đây và biết container nào cần hành động ngay.
+
+
+
+3.1.8.  KẾT QUẢ THỰC TẾ – vòng phản hồi 
+
+Đây là phần làm cho mô hình có tính học hỏi và cải thiện theo thời gian.
+
+Sau khi hệ thống đưa ra khuyến nghị và container được xử lý, chúng ta cần ghi nhận:
+
+Kết quả thực tế của hàng hóa như thế nào? Những kết quả này được lưu lại.
+
+↓
+
+Sau đó trở thành:Dữ liệu mới
+
+↓
+
+Đưa trở lại:ColdGuard AI
+
+↓
+
+AI có thêm dữ liệu để học.--> CẬP NHẬT LIÊN TỤC ĐỂ HỌC THEO CÁI MỚI
+
+IV. XÂY DỰNG PROTOTYPE VÀ KỊCH BẢN THỬ NGHIỆM
+
+Trên cơ sở dữ liệu và mô hình đã được trình bày ở các phần trước, nhóm xây dựng prototype COLDGUARD AI nhằm mô phỏng cách hệ thống được ứng dụng trong thực tế. Prototype tập trung vào ba nội dung chính: kiến trúc hệ thống, kịch bản mô phỏng đối với lô xoài xuất khẩu và giao diện Dashboard phục vụ theo dõi, quản lý rủi ro.
+
+4.1. Kiến trúc Prototype COLDGUARD AI
+
+Prototype COLDGUARD AI được xây dựng gồm bốn thành phần chính, có mối liên kết từ dữ liệu đầu vào đến kết quả hỗ trợ xử lý:
+
+Thứ nhất, bộ dữ liệu Big Data. Đây là nguồn dữ liệu đầu vào của hệ thống, bao gồm các nhóm dữ liệu về thương mại, logistics, thời tiết và cảm biến. Trong đó, dữ liệu cảm biến có thể bao gồm nhiệt độ, độ ẩm, thời gian hành trình và thời gian chờ của container. Đây là những thông tin được sử dụng để hình thành hồ sơ rủi ro cho từng container.
+
+Thứ hai, mô hình AI dự báo Cold Chain Risk Score. Dữ liệu sau khi được tổng hợp và xử lý được đưa vào mô hình COLDGUARD AI để đánh giá mức độ rủi ro của từng container. Kết quả đầu ra là Cold Chain Risk Score, phản ánh mức độ rủi ro suy giảm chất lượng của hàng hóa.
+
+Thứ ba, Dashboard quản lý. Kết quả đánh giá được trực quan hóa trên Dashboard, giúp nhân viên theo dõi tình trạng các container, nhận diện những trường hợp cần chú ý và thực hiện xếp hạng theo mức độ rủi ro.
+
+Thứ tư, Recommendation System. Dựa trên kết quả đánh giá và tình trạng của container, hệ thống đưa ra các khuyến nghị xử lý tương ứng, qua đó hỗ trợ nhân viên lựa chọn hành động phù hợp.
+
+Như vậy, bốn thành phần trên tạo thành một prototype thống nhất, trong đó dữ liệu được sử dụng để đánh giá rủi ro, kết quả đánh giá được hiển thị trên Dashboard và chuyển thành các khuyến nghị xử lý cho nhân viên.
+
+4.2. Kịch bản mô phỏng thực tế (Case Study: Xuất khẩu xoài)
+
+Để kiểm chứng khả năng ứng dụng của prototype, nhóm xây dựng một kịch bản mô phỏng đối với hoạt động xuất khẩu xoài. Kịch bản giả định một doanh nghiệp có 5 container xoài xuất khẩu đang chờ tại cửa khẩu để thực hiện các thủ tục liên quan.
+
+Phân tích tình huống
+
+Trong quá trình chờ, hệ thống tiếp nhận và cập nhật dữ liệu của từng container. Các thông tin được theo dõi bao gồm điều kiện nhiệt độ, độ ẩm và thời gian chờ. Đây cũng là những nhóm dữ liệu đã được xác định trong mô hình ở phần trước.
+
+Trong số 5 container, giả định một container xuất hiện đồng thời một số dấu hiệu bất thường như nhiệt độ có xu hướng tăng, thời gian chờ kéo dài và độ ẩm cao. Những thông tin này được hệ thống ghi nhận và đưa vào đánh giá rủi ro.
+
+Kết quả đầu ra
+
+Từ dữ liệu được cập nhật, COLDGUARD AI xác định container có mức độ rủi ro cao và hiển thị HIGH RISK trên hệ thống. Đồng thời, Dashboard thể hiện các nguyên nhân chính liên quan đến tình trạng rủi ro để nhân viên có cơ sở xử lý.
+
+Trên cơ sở đó, Recommendation System đưa ra các hành động phù hợp, gồm:
+
+Kiểm tra tình trạng cấp điện của container;
+
+Kiểm tra hệ thống làm lạnh;
+
+Ưu tiên xử lý hoặc di chuyển container vào kho lạnh;
+
+Tăng tần suất theo dõi nhiệt độ.
+
+Kịch bản trên nhằm minh họa cách prototype chuyển dữ liệu theo dõi thực tế thành thông tin cảnh báo và khuyến nghị xử lý đối với container có nguy cơ cao. Việc sử dụng dữ liệu mô phỏng cũng phù hợp với phương pháp của đề án trong bối cảnh khó tiếp cận đầy đủ dữ liệu cảm biến thực tế từ doanh nghiệp logistics.
+
+4.3. Giao diện Dashboard (Dự kiến)
+
+Dashboard được thiết kế theo hướng đơn giản, trực quan, giúp nhân viên quản lý có thể nhanh chóng nắm bắt tình trạng rủi ro của toàn bộ các container đang được theo dõi.
+
+Các thông số chính dự kiến được hiển thị gồm:
+
+(1) Tổng số container: thể hiện quy mô container đang được hệ thống quản lý tại thời điểm theo dõi. Ví dụ, Dashboard có thể hiển thị 100 container.
+
+(2) Phân loại trạng thái: các container được phân thành ba nhóm để nhân viên dễ dàng nhận diện tình trạng chung của hệ thống:
+
+Bình thường: 65 container;
+
+Cảnh báo: 25 container;
+
+Nguy cơ cao: 10 container.
+
+(3) Risk Score trung bình: thể hiện điểm rủi ro trung bình của toàn bộ hệ thống, qua đó cung cấp một chỉ báo tổng quan về mức độ rủi ro của các container đang được theo dõi.
+
+Như vậy, Dashboard đóng vai trò là giao diện tổng hợp kết quả của prototype, giúp nhân viên vừa theo dõi được quy mô và trạng thái chung của hệ thống, vừa nhận diện được những trường hợp cần được quan tâm trong quá trình quản lý chuỗi lạnh.
+
+V. TÍNH KHẢ THI, HIỆU QUẢ VÀ HƯỚNG PHÁT TRIỂN
+
+5.1. Tính khả thi của đề tài
+
+Về tính khả thi trong điều kiện kinh tế hiện nay, COLDGUARD AI có thể được xây dựng và triển khai theo hướng từng bước, không yêu cầu doanh nghiệp đầu tư toàn bộ hệ thống ngay từ đầu. Đề án tận dụng các hạ tầng và công nghệ sẵn có như IoT, điện toán đám mây, Big Data, AI và Dashboard, qua đó hạn chế chi phí đầu tư ban đầu. Doanh nghiệp có thể thử nghiệm ở quy mô nhỏ, đánh giá hiệu quả rồi mới mở rộng khi lợi ích thu được phù hợp với chi phí đầu tư và vận hành.
+
+Về dữ liệu, hệ thống sử dụng các dữ liệu gồm thông tin thương mại, logistics, thời tiết và dữ liệu cảm biến như nhiệt độ, độ ẩm, vị trí, thời gian chờ và trạng thái thiết bị làm lạnh. Prototype có thể sử dụng dữ liệu mô phỏng để kiểm chứng nguyên lý; khi triển khai thực tế, dữ liệu vận hành và dữ liệu IoT của doanh nghiệp sẽ được bổ sung để huấn luyện, hiệu chỉnh mô hình.
+
+Về công nghệ, COLDGUARD AI sử dụng các công nghệ đã có khả năng ứng dụng trong logistics như Big Data, AI, IoT và Dashboard, không đòi hỏi phát triển một nền tảng hoàn toàn mới. Các thành phần có thể được xây dựng theo mô-đun và tích hợp từng bước tùy theo nguồn lực của doanh nghiệp.
+
+Về vận hành, hệ thống đóng vai trò hỗ trợ ra quyết định thay vì thay thế nhân viên. AI xác định Risk Score, xếp hạng rủi ro và đưa ra khuyến nghị; nhân viên kiểm tra tình trạng thực tế và lựa chọn phương án xử lý. Nhờ đó, hệ thống có thể tích hợp vào quy trình quản lý container và giám sát chuỗi lạnh hiện có.
+
+Đề án có thể triển khai theo lộ trình Prototype → thử nghiệm quy mô nhỏ → đánh giá chi phí và hiệu quả → hoàn thiện → mở rộng. Tuy nhiên, triển khai thực tế cần tiếp tục bổ sung dữ liệu doanh nghiệp, kiểm định mô hình và đánh giá khả năng cân đối giữa chi phí đầu tư, chi phí vận hành và hiệu quả mang lại
+
+5.2. Hiệu quả kinh tế và xã hội
+
+Mô hình Cold Chain Priority có khả năng hỗ trợ doanh nghiệp chủ động nhận diện và xử lý các container có nguy cơ suy giảm chất lượng trong quá trình chờ thông quan tại cửa khẩu. Thông qua việc dự báo rủi ro và phân loại mức độ ưu tiên, các container có nguy cơ cao có thể được kiểm tra, bảo quản và xử lý sớm, qua đó góp phần giảm thiểu tỷ lệ hư hỏng và tổn thất chất lượng trái cây.
+
+Bên cạnh đó, việc phân luồng xử lý dựa trên mức độ rủi ro giúp doanh nghiệp tối ưu hóa nguồn lực logistics, tập trung nhân lực, phương tiện và khu vực bảo quản cho những lô hàng cần thiết thay vì xử lý đồng đều tất cả container. Việc hạn chế thời gian chờ và các hoạt động logistics không cần thiết cũng có thể góp phần tiết kiệm chi phí nhiên liệu, đồng thời phù hợp với định hướng Green Logistics thông qua sử dụng nguồn lực hiệu quả và giảm lãng phí trong chuỗi cung ứng lạnh.
+
+5.3. Hướng phát triển mở rộng
+
+Trong giai đoạn tiếp theo, mô hình có thể được mở rộng từ trái cây xuất khẩu sang các mặt hàng có yêu cầu nghiêm ngặt về điều kiện bảo quản như thủy hải sản đông lạnh, thiết bị y tế và vắc-xin. Khi áp dụng cho từng nhóm hàng, hệ thống có thể điều chỉnh dữ liệu đầu vào và các tiêu chí rủi ro phù hợp với đặc tính bảo quản của sản phẩm.
+
+Ngoài phạm vi cửa khẩu quốc tế Lào Cai, mô hình có thể được tích hợp tại các cửa khẩu quốc tế và cảng biển lớn khác trên cả nước. Khi có thêm dữ liệu thực tế từ các khu vực và loại hàng hóa khác nhau, hệ thống có thể tiếp tục được hoàn thiện, nâng cao khả năng dự báo và hỗ trợ ra quyết định trong quản trị chuỗi lạnh.
+
+VI. KẾT LUẬN
+
+Đề tài “Cold Chain Priority – Mô hình dự báo rủi ro và phân luồng bảo quản trái cây thông quan tại cửa khẩu quốc tế Lào Cai” được xây dựng nhằm giải quyết bài toán rủi ro đối với hàng hóa trái cây trong chuỗi cung ứng lạnh, đặc biệt trong quá trình vận chuyển và chờ thông quan tại cửa khẩu.
+
+Điểm cốt lõi của đề án là chuyển từ phương thức giám sát và phản ứng khi sự cố xảy ra sang dự báo và xử lý rủi ro chủ động. Trên cơ sở tích hợp dữ liệu về đặc điểm hàng hóa, nhiệt độ, thời gian, điều kiện môi trường và tình trạng container, ColdGuard AI thực hiện phân tích và đưa ra Risk Score phản ánh mức độ rủi ro. Từ kết quả này, Cold Chain Priority xác định mức độ ưu tiên xử lý, kết hợp với hệ thống khuyến nghị để hỗ trợ người quản lý lựa chọn phương án phù hợp như tăng cường giám sát, kiểm tra thiết bị lạnh, ưu tiên xử lý hoặc bố trí bảo quản lạnh.
+
+Thông qua prototype, kịch bản thử nghiệm và Dashboard quản lý, đề án cho thấy khả năng ứng dụng Big Data và AI vào việc hỗ trợ ra quyết định trong quản trị chuỗi cung ứng lạnh. Về lâu dài, mô hình hướng tới trở thành công cụ hỗ trợ doanh nghiệp ra quyết định chủ động, góp phần tối ưu hóa chuỗi cung ứng lạnh, giảm tổn thất chất lượng hàng hóa và nâng cao năng lực cạnh tranh của nông sản Việt Nam trên thị trường quốc tế.
+
+
+
+
+
+
+
+2
