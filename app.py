@@ -434,11 +434,12 @@ with tab_dash:
     c_left, c_right = st.columns([5.5, 4.5])
 
     with c_left:
-        st.markdown("#### 📈 Risk Score theo Container")
-        st.caption("Mức độ rủi ro")
+        bar_df = df.sort_values(by="Risk Score", ascending=False).head(15) if len(df) > 15 else df
+        subtitle_text = f"Top 15/{len(df)} Container rủi ro cao nhất" if len(df) > 15 else "Mức độ rủi ro"
+        st.caption(subtitle_text)
 
         fig_bar = px.bar(
-            df,
+            bar_df,
             x="Container",
             y="Risk Score",
             text="Risk Score"
@@ -551,16 +552,23 @@ with tab_dash:
         "</table>"
     )
 
+    table_wrapper = (
+        f"<div style='max-height: 480px; overflow-y: auto; border: 1px solid #edf2f7; border-radius: 8px;'>{table_html}</div>"
+        if len(sorted_df) > 10 else table_html
+    )
     if hasattr(st, "html"):
-        st.html(table_html)
+        st.html(table_wrapper)
     else:
-        st.markdown(table_html, unsafe_allow_html=True)
+        st.markdown(table_wrapper, unsafe_allow_html=True)
 
     # Cảnh báo vàng bên dưới bảng
     high_risk_rows = sorted_df[sorted_df["Phân loại"] == "High Risk"]
     if not high_risk_rows.empty:
-        high_items = [f"<b>{r['Container']}</b> — Risk Score <b>{r['Risk Score']}</b> — High Risk" for _, r in high_risk_rows.iterrows()]
+        top_high = high_risk_rows.head(4)
+        high_items = [f"<b>{r['Container']}</b> — Risk Score <b>{r['Risk Score']}</b> — High Risk" for _, r in top_high.iterrows()]
         alert_text = " | ".join(high_items)
+        if len(high_risk_rows) > 4:
+            alert_text += f" (và còn {len(high_risk_rows) - 4} container khác)"
         alert_html = f"<div class='alert-warning-box'>⚠️ Container cần ưu tiên xử lý: {alert_text}</div>"
         if hasattr(st, "html"):
             st.html(alert_html)
