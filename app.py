@@ -248,6 +248,12 @@ def compute_risk_score(temp, hum, wait_time, cooling_status):
     return total_score
 
 def classify_risk_level(score):
+    """
+    Theo mục 3.1.4 tài liệu LogiPro:
+    - 0-39: Low / Normal
+    - 40-69: Medium / Warning
+    - 70-100: High Risk
+    """
     if score >= 70:
         return "High Risk"
     elif score >= 40:
@@ -255,26 +261,67 @@ def classify_risk_level(score):
     else:
         return "Normal"
 
+def classify_priority(score):
+    """
+    Theo mục 3.1.5 tài liệu LogiPro (Cold Chain Priority):
+    - 70-100 (High Risk) -> P1: Ưu tiên xử lý + kho lạnh
+    - 40-69 (Medium)    -> P2: Tăng giám sát + bố trí bảo quản
+    - 0-39 (Low)        -> P3: Xử lý bình thường
+    """
+    if score >= 70:
+        return "P1"
+    elif score >= 40:
+        return "P2"
+    else:
+        return "P3"
+
+def determine_primary_cause(row):
+    """
+    Theo mục 3.1.5 & 3.1.6 tài liệu LogiPro:
+    Xác định nguyên nhân rủi ro (Risk Cause) phân biệt 'nguy hiểm vì cái gì':
+    Nhiệt độ lệch / Thời gian chờ / Nguồn điện làm lạnh
+    """
+    causes = []
+    if "bất thường" in str(row.get("Làm lạnh", "")).lower():
+        causes.append("Sự cố hệ thống làm lạnh")
+    if float(row.get("Nhiệt độ (°C)", 0)) > 6.0:
+        causes.append("Nhiệt độ lệch cao")
+    if float(row.get("Thời gian chờ (giờ)", 0)) > 24.0:
+        causes.append("Thời gian chờ kéo dài")
+    if float(row.get("Độ ẩm (%)", 0)) > 88.0:
+        causes.append("Độ ẩm khoang cao")
+
+    if not causes:
+        return "Điều kiện bảo quản đạt chuẩn"
+    return " & ".join(causes[:2])
+
 def get_recommendation(row):
+    """
+    Theo mục 3.1.6 tài liệu LogiPro:
+    Khuyến nghị hành động kết hợp giữa Priority Level và Risk Cause
+    """
+    p = classify_priority(row.get("Risk Score", 0))
     recs = []
-    if row["Nhiệt độ (°C)"] > 8.0:
-        recs.append("Kiểm tra và hiệu chỉnh ngay hệ thống làm lạnh container")
-    elif row["Nhiệt độ (°C)"] > 6.0:
-        recs.append("Theo dõi sát xu hướng tăng nhiệt độ trong khoang lạnh")
+    
+    if p == "P1":
+        recs.append("ƯU TIÊN P1: Đưa ngay vào khu vực bảo quản lạnh và làm thủ tục thông quan luồng ưu tiên")
+    elif p == "P2":
+        recs.append("CẢNH BÁO P2: Tăng cường tần suất giám sát nhiệt độ và sẵn sàng bố trí bảo quản bổ sung")
+    else:
+        recs.append("TIÊU CHUẨN P3: Duy trì chế độ giám sát định kỳ theo quy trình chuẩn")
 
-    if row["Độ ẩm (%)"] > 90.0:
-        recs.append("Tăng cường kiểm soát độ ẩm, thông gió tránh đọng sương")
+    if "bất thường" in str(row.get("Làm lạnh", "")).lower():
+        recs.append("Khẩn cấp: Kiểm tra giắc cắm nguồn điện reefer container và máy phát điện")
+    if float(row.get("Nhiệt độ (°C)", 0)) > 8.0:
+        recs.append("Nhiệt độ vượt ngưỡng cho phép: Hiệu chỉnh công suất làm mát tức thì")
+    elif float(row.get("Nhiệt độ (°C)", 0)) > 6.0:
+        recs.append("Nhiệt độ có xu hướng tăng: Kiểm tra kín gió và luồng khí đối lưu")
 
-    if row["Thời gian chờ (giờ)"] > 36.0:
-        recs.append("Ưu tiên thủ tục thông quan luồng xanh, rút ngắn thời gian chờ bãi")
+    if float(row.get("Thời gian chờ (giờ)", 0)) > 36.0:
+        recs.append("Thời gian lưu bãi quá giới hạn khuyến nghị: Rút ngắn thời gian thông quan")
 
-    if "bất thường" in str(row["Làm lạnh"]).lower():
-        recs.append("Khẩn cấp: Kiểm tra giắc cắm nguồn điện reefer container và máy phát")
+    return " • " + "\n • ".join(recs)
 
-    if not recs:
-        recs.append("Duy trì chế độ giám sát nhiệt độ định kỳ theo tiêu chuẩn")
-
-    return "; ".join(recs)
 
 # =========================================================
 # 5. SIDEBAR: TẢI FILE VÀ NGUỒN DỮ LIỆU
@@ -364,12 +411,14 @@ if uploaded_df is not None and not uploaded_df.empty:
 else:
     df = pd.DataFrame(default_demo_data)
 
-# Tính toán điểm rủi ro
+# Tính toán điểm rủi ro và các trường chuẩn theo tài liệu LogiPro
 df["Risk Score"] = df.apply(
     lambda r: compute_risk_score(r["Nhiệt độ (°C)"], r["Độ ẩm (%)"], r["Thời gian chờ (giờ)"], r["Làm lạnh"]),
     axis=1
 )
 df["Phân loại"] = df["Risk Score"].apply(classify_risk_level)
+df["Priority"] = df["Risk Score"].apply(classify_priority)
+df["Nguyên nhân chính"] = df.apply(determine_primary_cause, axis=1)
 df["Recommendation"] = df.apply(get_recommendation, axis=1)
 
 # =========================================================
@@ -605,20 +654,22 @@ with tab_case:
         st.write(f"• Độ ẩm: **{selected_row['Độ ẩm (%)']} %**")
         st.write(f"• Thời gian chờ: **{selected_row['Thời gian chờ (giờ)']} giờ**")
         st.write(f"• Trạng thái làm lạnh: **{selected_row['Làm lạnh']}**")
+        st.write(f"• Nguyên nhân rủi ro (*Risk Cause*): **{selected_row['Nguyên nhân chính']}**")
 
     with d_col2:
-        st.markdown(f"**Đánh giá của AI:**")
+        st.markdown(f"**Đánh giá AI & Phân luồng ưu tiên (*Cold Chain Priority*):**")
         score_val = selected_row["Risk Score"]
         level_val = selected_row["Phân loại"]
+        priority_val = selected_row["Priority"]
         
         if level_val == "High Risk":
-            st.error(f"🔴 {level_val} — Score: {score_val}/100")
+            st.error(f"🔴 {level_val} ({score_val}/100) — Mức ưu tiên: **{priority_val} (Ưu tiên xử lý + kho lạnh)**")
         elif level_val == "Warning":
-            st.warning(f"🟡 {level_val} — Score: {score_val}/100")
+            st.warning(f"🟡 {level_val} ({score_val}/100) — Mức ưu tiên: **{priority_val} (Tăng giám sát + bố trí bảo quản)**")
         else:
-            st.success(f"🟢 {level_val} — Score: {score_val}/100")
+            st.success(f"🟢 {level_val} ({score_val}/100) — Mức ưu tiên: **{priority_val} (Quy trình tiêu chuẩn)**")
 
-        st.info(f"💡 **Khuyến nghị xử lý:** {selected_row['Recommendation']}")
+        st.info(f"💡 **Hành động đề xuất:**\n\n{selected_row['Recommendation']}")
 
     st.markdown("---")
     st.markdown("#### 📥 Xuất báo cáo dữ liệu phân tích")
