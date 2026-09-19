@@ -498,7 +498,7 @@ with tab_dash:
                 zerolinecolor="#e2e8f0"
             ),
             xaxis=dict(
-                gridcolor="transparent"
+                showgrid=False
             ),
             plot_bgcolor="white",
             paper_bgcolor="white",
