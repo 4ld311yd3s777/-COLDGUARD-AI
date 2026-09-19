@@ -160,9 +160,7 @@ st.markdown(
         font-weight: 500;
         margin-top: 20px;
         margin-bottom: 24px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        line-height: 1.5;
     }
 
     /* Footer */
@@ -610,19 +608,44 @@ with tab_dash:
     else:
         st.markdown(table_wrapper, unsafe_allow_html=True)
 
-    # Cảnh báo vàng bên dưới bảng
+    # Cảnh báo vàng bên dưới bảng - Hiển thị đầy đủ tất cả container cần ưu tiên xử lý
     high_risk_rows = sorted_df[sorted_df["Phân loại"] == "High Risk"]
     if not high_risk_rows.empty:
-        top_high = high_risk_rows.head(4)
-        high_items = [f"<b>{r['Container']}</b> — Risk Score <b>{r['Risk Score']}</b> — High Risk" for _, r in top_high.iterrows()]
-        alert_text = " | ".join(high_items)
-        if len(high_risk_rows) > 4:
-            alert_text += f" (và còn {len(high_risk_rows) - 4} container khác)"
-        alert_html = f"<div class='alert-warning-box'>⚠️ Container cần ưu tiên xử lý: {alert_text}</div>"
-        if hasattr(st, "html"):
-            st.html(alert_html)
+        if len(high_risk_rows) == 1:
+            r = high_risk_rows.iloc[0]
+            alert_html = (
+                f"<div class='alert-warning-box'>"
+                f"⚠️ <b>Container cần ưu tiên xử lý:</b> {r['Container']} — Risk Score <b>{r['Risk Score']}</b> — High Risk"
+                f"</div>"
+            )
         else:
-            st.markdown(alert_html, unsafe_allow_html=True)
+            items_html = "".join([
+                f"<div style='margin-top: 6px; padding-left: 8px; font-size: 14px;'>"
+                f"• <b>{r['Container']}</b> — Risk Score: <b>{r['Risk Score']}</b> — <b>{r['Phân loại']}</b> "
+                f"<span style='color: #b45309;'>({r['Nguyên nhân chính']})</span>"
+                f"</div>"
+                for _, r in high_risk_rows.iterrows()
+            ])
+            scroll_style = "max-height: 250px; overflow-y: auto; margin-top: 8px;" if len(high_risk_rows) > 5 else "margin-top: 8px;"
+            alert_html = (
+                f"<div class='alert-warning-box'>"
+                f"<div style='font-size: 15px; font-weight: 700;'>"
+                f"⚠️ Danh sách container cần ưu tiên xử lý ({len(high_risk_rows)} container High Risk / P1):"
+                f"</div>"
+                f"<div style='{scroll_style}'>{items_html}</div>"
+                f"</div>"
+            )
+    else:
+        alert_html = (
+            f"<div class='alert-warning-box' style='background-color: #f0fdf4; border-color: #bbf7d0; color: #166534;'>"
+            f"✅ <b>Tất cả container đều nằm trong ngưỡng an toàn</b> (Không có container High Risk cần can thiệp khẩn cấp)."
+            f"</div>"
+        )
+
+    if hasattr(st, "html"):
+        st.html(alert_html)
+    else:
+        st.markdown(alert_html, unsafe_allow_html=True)
 
 # =========================================================
 # 9. TAB 2: CASE STUDY & CHI TIẾT
