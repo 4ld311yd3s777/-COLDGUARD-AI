@@ -1,3 +1,4 @@
+import io
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -7,9 +8,10 @@ import plotly.express as px
 # 1. CẤU HÌNH TRANG
 # =========================================================
 st.set_page_config(
-    page_title="COLDGUARD AI",
+    page_title="COLDGUARD AI - Cold Chain Risk Management",
     page_icon="❄️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # =========================================================
@@ -19,50 +21,66 @@ st.markdown(
     """
     <style>
     .main {
-        background-color: #f7f9fc;
+        background-color: #f8fafc;
     }
     .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
+        padding-top: 1.8rem;
+        padding-bottom: 2.5rem;
     }
     .title {
-        font-size: 42px;
+        font-size: 38px;
         font-weight: 800;
-        margin-bottom: 5px;
+        color: #0f172a;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
     .subtitle {
-        font-size: 18px;
-        color: #64748b;
-        margin-bottom: 25px;
+        font-size: 16px;
+        color: #475569;
+        margin-bottom: 20px;
     }
-    .risk-high {
-        background-color: #fee2e2;
-        padding: 8px 12px;
-        border-radius: 8px;
-        font-weight: 700;
-    }
-    .risk-medium {
-        background-color: #fef3c7;
-        padding: 8px 12px;
-        border-radius: 8px;
-        font-weight: 700;
-    }
-    .risk-low {
-        background-color: #dcfce7;
-        padding: 8px 12px;
-        border-radius: 8px;
-        font-weight: 700;
+    .metric-card {
+        background-color: white;
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     .info-box {
-        padding: 18px;
-        border-radius: 12px;
-        background-color: white;
-        border: 1px solid #e2e8f0;
+        padding: 16px 20px;
+        border-radius: 10px;
+        background-color: #ffffff;
+        border-left: 5px solid #2563eb;
+        border-top: 1px solid #e2e8f0;
+        border-right: 1px solid #e2e8f0;
+        border-bottom: 1px solid #e2e8f0;
         margin-bottom: 15px;
     }
-    .small-text {
-        color: #64748b;
-        font-size: 14px;
+    .risk-tag-high {
+        background-color: #fee2e2;
+        color: #991b1b;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        display: inline-block;
+    }
+    .risk-tag-medium {
+        background-color: #fef3c7;
+        color: #92400e;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        display: inline-block;
+    }
+    .risk-tag-low {
+        background-color: #dcfce7;
+        color: #166534;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        display: inline-block;
     }
     </style>
     """,
@@ -70,533 +88,511 @@ st.markdown(
 )
 
 # =========================================================
-# 3. TIÊU ĐỀ
+# 3. TIÊU ĐỀ ỨNG DỤNG
 # =========================================================
+st.markdown('<div class="title">❄️ COLDGUARD AI</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="title">❄️ COLDGUARD AI</div>',
+    '<div class="subtitle">'
+    'Mô hình AI dự báo và quản trị rủi ro chuỗi lạnh đối với nông sản & hàng hóa xuất khẩu'
+    '</div>',
     unsafe_allow_html=True
 )
 
-st.markdown(
-    """
-    <div class="subtitle">
-    Mô hình dự báo và quản trị rủi ro chuỗi lạnh đối với hàng hóa xuất khẩu
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-st.info(
-    "Prototype mô phỏng: dự báo rủi ro chuỗi lạnh cho các container "
-    "xoài xuất khẩu đang chờ thông quan."
-)
-
 # =========================================================
-# 4. DỮ LIỆU MÔ PHỎNG
-# =========================================================
-data = {
-    "Container": [
-        "C01", "C02", "C03", "C04", "C05"
-    ],
-    "Nhiệt độ (°C)": [
-        5.2, 6.1, 7.4, 9.2, 5.8
-    ],
-    "Độ ẩm (%)": [
-        78, 82, 86, 92, 80
-    ],
-    "Thời gian chờ (giờ)": [
-        10, 18, 24, 38, 14
-    ],
-    "Thời gian vận chuyển (giờ)": [
-        26, 30, 34, 42, 28
-    ],
-    "Tình trạng nguồn điện": [
-        "Ổn định", "Ổn định", "Ổn định", "Bất thường", "Ổn định"
-    ]
-}
-
-df = pd.DataFrame(data)
-
-# =========================================================
-# 5. HÀM TÍNH RISK SCORE
+# 4. HÀM TÍNH TOÁN RỦI RO (RISK ENGINE)
 # =========================================================
 def calculate_temperature_risk(temp):
     """
-    Nhiệt độ mô phỏng:
-    2 - 6°C: rủi ro thấp
-    6 - 8°C: rủi ro trung bình
-    > 8°C: rủi ro cao
+    Ngưỡng nhiệt độ mô phỏng cho chuỗi lạnh trái cây/xoài xuất khẩu:
+    <= 6°C: Tối ưu (Rủi ro thấp)
+    6 - 8°C: Ngưỡng cảnh báo (Rủi ro trung bình)
+    > 8°C: Nguy cơ hư hỏng (Rủi ro cao)
     """
-    if temp <= 6:
-        return 10
-    elif temp <= 8:
-        return 45
+    try:
+        val = float(temp)
+    except:
+        return 50.0
+    if val <= 6.0:
+        return 10.0
+    elif val <= 8.0:
+        return 45.0
     else:
-        return 90
+        return 90.0
 
 def calculate_humidity_risk(humidity):
-    if humidity <= 80:
-        return 10
-    elif humidity <= 88:
-        return 45
+    try:
+        val = float(humidity)
+    except:
+        return 50.0
+    if val <= 80.0:
+        return 10.0
+    elif val <= 88.0:
+        return 45.0
     else:
-        return 85
+        return 85.0
 
 def calculate_waiting_risk(waiting_time):
-    if waiting_time <= 12:
-        return 10
-    elif waiting_time <= 24:
-        return 45
+    try:
+        val = float(waiting_time)
+    except:
+        return 50.0
+    if val <= 12.0:
+        return 10.0
+    elif val <= 24.0:
+        return 45.0
     else:
-        return 90
+        return 90.0
 
 def calculate_transport_risk(transport_time):
-    if transport_time <= 28:
-        return 10
-    elif transport_time <= 36:
-        return 40
+    try:
+        val = float(transport_time)
+    except:
+        return 50.0
+    if val <= 28.0:
+        return 10.0
+    elif val <= 36.0:
+        return 40.0
     else:
-        return 80
+        return 80.0
 
 def calculate_power_risk(power_status):
-    if power_status == "Ổn định":
-        return 5
+    status_str = str(power_status).strip().lower()
+    abnormal_keywords = ["bất thường", "abnormal", "fault", "lỗi", "mất điện", "hong", "hỏng", "off", "0", "false"]
+    if any(k in status_str for k in abnormal_keywords):
+        return 90.0
+    return 5.0
+
+def classify_risk(score):
+    if score >= 70.0:
+        return "HIGH RISK"
+    elif score >= 40.0:
+        return "MEDIUM RISK"
     else:
-        return 90
+        return "LOW RISK"
+
+def build_recommendation(row):
+    actions = []
+    if row["Nhiệt độ (°C)"] > 8.0:
+        actions.append("Kiểm tra và hiệu chỉnh ngay hệ thống làm lạnh container")
+    elif row["Nhiệt độ (°C)"] > 6.0:
+        actions.append("Theo dõi sát xu hướng tăng nhiệt độ trong khoang lạnh")
+
+    if row["Độ ẩm (%)"] > 88.0:
+        actions.append("Tăng cường kiểm soát độ ẩm, thông gió tránh đọng sương")
+    elif row["Độ ẩm (%)"] < 75.0:
+        actions.append("Cảnh báo độ ẩm thấp có thể làm khô héo nông sản")
+
+    if row["Thời gian chờ (giờ)"] > 24.0:
+        actions.append("Ưu tiên luồng xanh / thủ tục hải quan rút ngắn thời gian chờ bãi")
+    elif row["Thời gian chờ (giờ)"] > 12.0:
+        actions.append("Chuẩn bị sẵn chứng từ xuất khẩu để thông quan nhanh")
+
+    power_val = str(row["Tình trạng nguồn điện"]).strip().lower()
+    if any(k in power_val for k in ["bất thường", "abnormal", "fault", "lỗi", "mất điện", "hỏng"]):
+        actions.append("KHẨN CẤP: Kiểm tra giắc cắm nguồn reefer container và máy phát điện")
+
+    if row["Thời gian vận chuyển (giờ)"] > 36.0:
+        actions.append("Lộ trình vận chuyển kéo dài, kiểm tra tổng thể chất lượng hàng")
+
+    if not actions:
+        actions.append("Tiếp tục duy trì giám sát định kỳ điều kiện bảo quản")
+
+    return " • " + "\n • ".join(actions)
 
 # =========================================================
-# 6. TÍNH RISK SCORE
+# 5. DỮ LIỆU MẪU BAN ĐẦU
 # =========================================================
-df["Temperature Risk"] = df["Nhiệt độ (°C)"].apply(
-    calculate_temperature_risk
+sample_data = {
+    "Container": ["C01", "C02", "C03", "C04", "C05"],
+    "Nhiệt độ (°C)": [5.2, 6.1, 7.4, 9.2, 5.8],
+    "Độ ẩm (%)": [78.0, 82.0, 86.0, 92.0, 80.0],
+    "Thời gian chờ (giờ)": [10.0, 18.0, 24.0, 38.0, 14.0],
+    "Thời gian vận chuyển (giờ)": [26.0, 30.0, 34.0, 42.0, 28.0],
+    "Tình trạng nguồn điện": ["Ổn định", "Ổn định", "Ổn định", "Bất thường", "Ổn định"]
+}
+
+# =========================================================
+# 6. SIDEBAR: TẢI FILE & CẤU HÌNH
+# =========================================================
+st.sidebar.header("📁 Nguồn dữ liệu")
+
+data_source = st.sidebar.radio(
+    "Chọn phương thức nhập dữ liệu:",
+    options=["Dữ liệu mẫu (Demo)", "Tải lên file CSV / Excel"],
+    index=0
 )
-df["Humidity Risk"] = df["Độ ẩm (%)"].apply(
-    calculate_humidity_risk
-)
-df["Waiting Risk"] = df["Thời gian chờ (giờ)"].apply(
-    calculate_waiting_risk
-)
-df["Transport Risk"] = df["Thời gian vận chuyển (giờ)"].apply(
-    calculate_transport_risk
-)
-df["Power Risk"] = df["Tình trạng nguồn điện"].apply(
-    calculate_power_risk
+
+uploaded_df = None
+
+# Hàm tìm cột thông minh
+def auto_detect_column(columns, candidates):
+    cols_lower = {str(c).strip().lower(): c for c in columns}
+    for cand in candidates:
+        cand_lower = cand.lower()
+        for k, original_col in cols_lower.items():
+            if cand_lower == k or cand_lower in k:
+                return original_col
+    return columns[0] if len(columns) > 0 else None
+
+if data_source == "Tải lên file CSV / Excel":
+    uploaded_file = st.sidebar.file_uploader(
+        "Tải lên tệp dữ liệu container:",
+        type=["csv", "xlsx", "xls"],
+        help="Hỗ trợ file định dạng CSV hoặc Microsoft Excel (.xlsx, .xls)"
+    )
+
+    if uploaded_file is not None:
+        try:
+            if uploaded_file.name.endswith(".csv"):
+                # Thử đọc với các bảng mã thông dụng
+                try:
+                    uploaded_df = pd.read_csv(uploaded_file, encoding="utf-8-sig")
+                except UnicodeDecodeError:
+                    uploaded_file.seek(0)
+                    uploaded_df = pd.read_csv(uploaded_file, encoding="latin1")
+            else:
+                uploaded_df = pd.read_excel(uploaded_file)
+            
+            st.sidebar.success(f"✅ Đã tải: `{uploaded_file.name}` ({len(uploaded_df)} dòng)")
+        except Exception as e:
+            st.sidebar.error(f"❌ Lỗi khi đọc file: {e}")
+    else:
+        st.sidebar.info("💡 Chưa có file nào được tải lên. Đang sử dụng dữ liệu mẫu.")
+
+# Nút tải file mẫu cho người dùng
+st.sidebar.markdown("---")
+st.sidebar.subheader("📥 Mẫu dữ liệu chuẩn")
+sample_df_template = pd.DataFrame(sample_data)
+csv_template = sample_df_template.to_csv(index=False).encode("utf-8-sig")
+st.sidebar.download_button(
+    label="Tải file mẫu (CSV)",
+    data=csv_template,
+    file_name="mau_du_lieu_coldguard.csv",
+    mime="text/csv",
+    help="Tải file mẫu để xem định dạng các cột cần thiết"
 )
 
 # =========================================================
-# 7. COLD CHAIN RISK SCORE
+# 7. XỬ LÝ DỮ LIỆU & ÁNH XẠ CỘT (COLUMN MAPPING)
 # =========================================================
+if uploaded_df is not None and not uploaded_df.empty:
+    raw_df = uploaded_df.copy()
+    is_custom_data = True
+else:
+    raw_df = pd.DataFrame(sample_data)
+    is_custom_data = False
+
+cols = list(raw_df.columns)
+
+with st.sidebar.expander("⚙️ Cấu hình ánh xạ cột", expanded=is_custom_data):
+    st.caption("Khớp nối tên cột trong file của bạn với các biến rủi ro:")
+    
+    col_id = st.selectbox(
+        "Cột Mã Container:",
+        options=cols,
+        index=cols.index(auto_detect_column(cols, ["container", "id", "mã", "code", "so_cont"])) if cols else 0
+    )
+    col_temp = st.selectbox(
+        "Cột Nhiệt độ (°C):",
+        options=cols,
+        index=cols.index(auto_detect_column(cols, ["nhiệt độ", "nhiet do", "temp", "celsius"])) if cols else 0
+    )
+    col_hum = st.selectbox(
+        "Cột Độ ẩm (%):",
+        options=cols,
+        index=cols.index(auto_detect_column(cols, ["độ ẩm", "do am", "humidity", "hum"])) if cols else 0
+    )
+    col_wait = st.selectbox(
+        "Cột Thời gian chờ (giờ):",
+        options=cols,
+        index=cols.index(auto_detect_column(cols, ["thời gian chờ", "cho", "wait", "delay"])) if cols else 0
+    )
+    col_trans = st.selectbox(
+        "Cột Thời gian vận chuyển (giờ):",
+        options=cols,
+        index=cols.index(auto_detect_column(cols, ["thời gian vận chuyển", "van chuyen", "transport", "transit"])) if cols else 0
+    )
+    col_power = st.selectbox(
+        "Cột Tình trạng nguồn điện:",
+        options=cols,
+        index=cols.index(auto_detect_column(cols, ["nguồn điện", "nguon dien", "power", "dien"])) if cols else 0
+    )
+
+# Chuẩn hoá DataFrame về định dạng chuẩn của COLDGUARD
+df = pd.DataFrame()
+df["Container"] = raw_df[col_id].astype(str)
+df["Nhiệt độ (°C)"] = pd.to_numeric(raw_df[col_temp], errors="coerce").fillna(6.0)
+df["Độ ẩm (%)"] = pd.to_numeric(raw_df[col_hum], errors="coerce").fillna(80.0)
+df["Thời gian chờ (giờ)"] = pd.to_numeric(raw_df[col_wait], errors="coerce").fillna(12.0)
+df["Thời gian vận chuyển (giờ)"] = pd.to_numeric(raw_df[col_trans], errors="coerce").fillna(24.0)
+df["Tình trạng nguồn điện"] = raw_df[col_power].fillna("Ổn định").astype(str)
+
+# =========================================================
+# 8. TÍNH TOÁN RISK SCORES
+# =========================================================
+df["Temperature Risk"] = df["Nhiệt độ (°C)"].apply(calculate_temperature_risk)
+df["Humidity Risk"] = df["Độ ẩm (%)"].apply(calculate_humidity_risk)
+df["Waiting Risk"] = df["Thời gian chờ (giờ)"].apply(calculate_waiting_risk)
+df["Transport Risk"] = df["Thời gian vận chuyển (giờ)"].apply(calculate_transport_risk)
+df["Power Risk"] = df["Tình trạng nguồn điện"].apply(calculate_power_risk)
+
+# Trọng số mô hình Cold Chain Risk Score
 df["Risk Score"] = (
     df["Temperature Risk"] * 0.35 +
     df["Humidity Risk"] * 0.15 +
     df["Waiting Risk"] * 0.25 +
     df["Transport Risk"] * 0.15 +
     df["Power Risk"] * 0.10
-)
-
-# Làm tròn
-df["Risk Score"] = df["Risk Score"].round(1)
-
-# =========================================================
-# 8. PHÂN LOẠI RỦI RO
-# =========================================================
-def classify_risk(score):
-    if score >= 70:
-        return "HIGH RISK"
-    elif score >= 40:
-        return "MEDIUM RISK"
-    else:
-        return "LOW RISK"
+).round(1)
 
 df["Risk Level"] = df["Risk Score"].apply(classify_risk)
+df["Recommendation"] = df.apply(build_recommendation, axis=1)
 
-# =========================================================
-# 9. HÀM ĐỀ XUẤT HÀNH ĐỘNG
-# =========================================================
-def recommendation(row):
-    actions = []
-    if row["Nhiệt độ (°C)"] > 8:
-        actions.append(
-            "Kiểm tra và điều chỉnh hệ thống làm lạnh"
-        )
-    if row["Độ ẩm (%)"] > 88:
-        actions.append(
-            "Tăng cường kiểm soát độ ẩm"
-        )
-    if row["Thời gian chờ (giờ)"] > 24:
-        actions.append(
-            "Ưu tiên xử lý và rút ngắn thời gian chờ"
-        )
-    if row["Tình trạng nguồn điện"] == "Bất thường":
-        actions.append(
-            "Kiểm tra nguồn điện và thiết bị bảo quản"
-        )
-    if not actions:
-        actions.append(
-            "Tiếp tục theo dõi điều kiện bảo quản"
-        )
-    return "; ".join(actions)
-
-df["Recommendation"] = df.apply(
-    recommendation, axis=1
-)
-
-# =========================================================
-# 10. SIDEBAR
-# =========================================================
-st.sidebar.title("⚙️ Bộ lọc")
-
-selected_risk = st.sidebar.multiselect(
-    "Mức độ rủi ro",
-    options=[
-        "HIGH RISK",
-        "MEDIUM RISK",
-        "LOW RISK"
-    ],
-    default=[
-        "HIGH RISK",
-        "MEDIUM RISK",
-        "LOW RISK"
-    ]
-)
-
-filtered_df = df[
-    df["Risk Level"].isin(selected_risk)
-]
-
-# =========================================================
-# 11. KPI
-# =========================================================
-total_containers = len(df)
-high_risk = len(
-    df[df["Risk Level"] == "HIGH RISK"]
-)
-medium_risk = len(
-    df[df["Risk Level"] == "MEDIUM RISK"]
-)
-low_risk = len(
-    df[df["Risk Level"] == "LOW RISK"]
-)
-average_risk = round(
-    df["Risk Score"].mean(), 1
-)
-
-st.markdown("## 📊 Tổng quan")
-
-col1, col2, col3, col4, col5 = st.columns(5)
-
-with col1:
-    st.metric(
-        "Tổng container",
-        total_containers
-    )
-with col2:
-    st.metric(
-        "🔴 High Risk",
-        high_risk
-    )
-with col3:
-    st.metric(
-        "🟡 Medium Risk",
-        medium_risk
-    )
-with col4:
-    st.metric(
-        "🟢 Low Risk",
-        low_risk
-    )
-with col5:
-    st.metric(
-        "Risk Score TB",
-        average_risk
-    )
-
-# =========================================================
-# 12. CẢNH BÁO
-# =========================================================
-high_risk_df = df[
-    df["Risk Level"] == "HIGH RISK"
-]
-if len(high_risk_df) > 0:
-    st.warning(
-        f"⚠️ Phát hiện {len(high_risk_df)} container "
-        "có mức rủi ro cao cần ưu tiên xử lý."
-    )
-
-# =========================================================
-# 13. BẢNG XẾP HẠNG CONTAINER
-# =========================================================
-st.markdown("## 🚢 Phân tích rủi ro container")
-
-display_df = filtered_df[
-    [
-        "Container",
-        "Nhiệt độ (°C)",
-        "Độ ẩm (%)",
-        "Thời gian chờ (giờ)",
-        "Thời gian vận chuyển (giờ)",
-        "Tình trạng nguồn điện",
-        "Risk Score",
-        "Risk Level"
-    ]
-].sort_values(
-    "Risk Score", ascending=False
-)
-
-st.dataframe(
-    display_df,
-    use_container_width=True,
-    hide_index=True
-)
-
-# =========================================================
-# 14. BIỂU ĐỒ RISK SCORE
-# =========================================================
-st.markdown("## 📈 Xếp hạng rủi ro")
-
-fig_risk = px.bar(
-    filtered_df.sort_values(
-        "Risk Score", ascending=False
-    ),
-    x="Container",
-    y="Risk Score",
-    text="Risk Score",
-    title="Cold Chain Risk Score theo container",
-    labels={
-        "Container": "Container",
-        "Risk Score": "Risk Score"
-    }
-)
-
-fig_risk.update_traces(
-    textposition="outside"
-)
-fig_risk.update_layout(
-    yaxis=dict(
-        range=[0, 100]
-    )
-)
-
-st.plotly_chart(
-    fig_risk,
-    use_container_width=True
-)
-
-# =========================================================
-# 15. PHÂN TÍCH CÁC YẾU TỐ RỦI RO
-# =========================================================
-st.markdown("## 🔍 Phân tích yếu tố rủi ro")
-
-factor_df = pd.DataFrame({
-    "Yếu tố": [
-        "Nhiệt độ",
-        "Độ ẩm",
-        "Thời gian chờ",
-        "Thời gian vận chuyển",
-        "Nguồn điện"
-    ],
-    "Mức độ ảnh hưởng": [
-        35, 15, 25, 15, 10
-    ]
-})
-
-fig_factor = px.bar(
-    factor_df,
-    x="Yếu tố",
-    y="Mức độ ảnh hưởng",
-    text="Mức độ ảnh hưởng",
-    title="Trọng số các yếu tố trong Risk Score",
-    labels={
-        "Yếu tố": "Yếu tố",
-        "Mức độ ảnh hưởng": "Trọng số (%)"
-    }
-)
-
-fig_factor.update_traces(
-    textposition="outside"
-)
-
-st.plotly_chart(
-    fig_factor,
-    use_container_width=True
-)
-
-# =========================================================
-# 16. CHI TIẾT CONTAINER
-# =========================================================
-st.markdown("## 🔎 Chi tiết container")
-
-selected_container = st.selectbox(
-    "Chọn container để phân tích",
-    df["Container"].tolist()
-)
-
-selected_row = df[
-    df["Container"] == selected_container
-].iloc[0]
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("### Điều kiện hiện tại")
-    st.write(
-        f"**Nhiệt độ:** "
-        f"{selected_row['Nhiệt độ (°C)']} °C"
-    )
-    st.write(
-        f"**Độ ẩm:** "
-        f"{selected_row['Độ ẩm (%)']} %"
-    )
-    st.write(
-        f"**Thời gian chờ:** "
-        f"{selected_row['Thời gian chờ (giờ)']} giờ"
-    )
-    st.write(
-        f"**Thời gian vận chuyển:** "
-        f"{selected_row['Thời gian vận chuyển (giờ)']} giờ"
-    )
-    st.write(
-        f"**Nguồn điện:** "
-        f"{selected_row['Tình trạng nguồn điện']}"
-    )
-
-with col2:
-    st.markdown("### Kết quả AI")
-    score = selected_row["Risk Score"]
-    st.metric(
-        "Cold Chain Risk Score",
-        f"{score}/100"
-    )
-
-    risk_level = selected_row["Risk Level"]
-    if risk_level == "HIGH RISK":
-        st.error(
-            f"🔴 {risk_level}"
-        )
-    elif risk_level == "MEDIUM RISK":
-        st.warning(
-            f"🟡 {risk_level}"
-        )
-    else:
-        st.success(
-            f"🟢 {risk_level}"
-        )
-
-# =========================================================
-# 17. GIẢI THÍCH NGUYÊN NHÂN
-# =========================================================
-st.markdown("### 🧠 Nguyên nhân rủi ro")
-
-causes = []
-
-if selected_row["Nhiệt độ (°C)"] > 8:
-    causes.append(
-        "Nhiệt độ bảo quản đang cao."
-    )
-if selected_row["Độ ẩm (%)"] > 88:
-    causes.append(
-        "Độ ẩm cao làm gia tăng rủi ro ảnh hưởng chất lượng."
-    )
-if selected_row["Thời gian chờ (giờ)"] > 24:
-    causes.append(
-        "Thời gian chờ thông quan kéo dài."
-    )
-if selected_row["Thời gian vận chuyển (giờ)"] > 36:
-    causes.append(
-        "Thời gian vận chuyển dài."
-    )
-if selected_row["Tình trạng nguồn điện"] == "Bất thường":
-    causes.append(
-        "Nguồn điện của hệ thống bảo quản có dấu hiệu bất thường."
-    )
-
-if not causes:
-    causes.append(
-        "Các điều kiện hiện tại nằm trong ngưỡng kiểm soát."
-    )
-
-for cause in causes:
-    st.write("• " + cause)
-
-# =========================================================
-# 18. RECOMMENDATION SYSTEM
-# =========================================================
-st.markdown("## 🚨 Recommendation System")
-
-if selected_row["Risk Level"] == "HIGH RISK":
-    st.error(
-        "ƯU TIÊN XỬ LÝ NGAY"
-    )
-elif selected_row["Risk Level"] == "MEDIUM RISK":
-    st.warning(
-        "CẦN THEO DÕI VÀ CAN THIỆP"
-    )
+# Thông báo trạng thái nguồn dữ liệu
+if is_custom_data:
+    st.success(f"📊 **Dữ liệu thực tế đang được phân tích:** Tổng cộng **{len(df)}** container từ tệp tải lên.")
 else:
-    st.success(
-        "TIẾP TỤC THEO DÕI"
-    )
+    st.info("ℹ️ **Chế độ Demo:** Đang hiển thị bộ dữ liệu mô phỏng 5 container xoài xuất khẩu. Hãy tải file CSV/Excel ở thanh bên trái để phân tích dữ liệu thực tế của bạn.")
 
-st.markdown(
-    f"""
-    <div class="info-box">
-    <b>Khuyến nghị:</b><br><br>
-    {selected_row["Recommendation"]}
-    </div>
-    """,
-    unsafe_allow_html=True
+# =========================================================
+# 9. BỘ LỌC DỮ LIỆU SIDEBAR
+# =========================================================
+st.sidebar.markdown("---")
+st.sidebar.header("🔍 Bộ lọc hiển thị")
+
+all_risk_levels = ["HIGH RISK", "MEDIUM RISK", "LOW RISK"]
+selected_risk = st.sidebar.multiselect(
+    "Mức độ rủi ro:",
+    options=all_risk_levels,
+    default=all_risk_levels
 )
 
-# =========================================================
-# 19. CASE STUDY
-# =========================================================
-st.markdown("## 🥭 Case Study – Xuất khẩu xoài")
+search_keyword = st.sidebar.text_input("Tìm kiếm mã container:", placeholder="Nhập mã container...")
 
-st.markdown(
-    """
-    **Bối cảnh mô phỏng**
-    Một lô hàng gồm 5 container xoài xuất khẩu đang chờ thông quan tại cửa khẩu quốc tế.
-    Hệ thống COLDGUARD AI tiếp nhận dữ liệu từ nhiều nguồn như điều kiện nhiệt độ, độ ẩm, thời gian chờ và tình trạng nguồn điện.
-    Hệ thống tính toán Cold Chain Risk Score để nhận diện container có nguy cơ ảnh hưởng chất lượng và hỗ trợ doanh nghiệp ưu tiên xử lý.
-    """
-)
-
-st.markdown(
-    """
-    **Quy trình**
-    Dữ liệu logistics + dữ liệu môi trường
-    ↓
-    Phân tích dữ liệu
-    ↓
-    Cold Chain Risk Score
-    ↓
-    Phân loại mức độ rủi ro
-    ↓
-    Cảnh báo container nguy cơ cao
-    ↓
-    Đề xuất hành động
-    """
-)
+filtered_df = df[df["Risk Level"].isin(selected_risk)]
+if search_keyword.strip():
+    filtered_df = filtered_df[filtered_df["Container"].str.contains(search_keyword.strip(), case=False, na=False)]
 
 # =========================================================
-# 20. DOWNLOAD DATA
+# 10. KPI TỔNG QUAN
 # =========================================================
-st.markdown("## 📥 Xuất dữ liệu")
+total_c = len(df)
+high_c = len(df[df["Risk Level"] == "HIGH RISK"])
+med_c = len(df[df["Risk Level"] == "MEDIUM RISK"])
+low_c = len(df[df["Risk Level"] == "LOW RISK"])
+avg_score = round(df["Risk Score"].mean(), 1) if total_c > 0 else 0
 
-csv = df.to_csv(
-    index=False
-).encode("utf-8-sig")
+st.markdown("### 📊 Tổng quan chỉ số rủi ro")
+col1, col2, col3, col4, col5 = st.columns(5)
+with col1:
+    st.metric("📦 Tổng container", total_c)
+with col2:
+    st.metric("🔴 High Risk", high_c, delta=f"{round(high_c/total_c*100, 1)}%" if total_c else None, delta_color="inverse")
+with col3:
+    st.metric("🟡 Medium Risk", med_c)
+with col4:
+    st.metric("🟢 Low Risk", low_c)
+with col5:
+    st.metric("📈 Risk Score TB", f"{avg_score}/100")
 
-st.download_button(
-    label="⬇️ Tải dữ liệu COLDGUARD",
-    data=csv,
-    file_name="coldguard_risk_analysis.csv",
-    mime="text/csv"
-)
+# Cảnh báo khẩn nếu có High Risk
+if high_c > 0:
+    high_cont_names = ", ".join(df[df["Risk Level"] == "HIGH RISK"]["Container"].tolist()[:5])
+    suffix = "..." if high_c > 5 else ""
+    st.error(f"🚨 **CẢNH BÁO:** Phát hiện **{high_c} container** ở mức độ rủi ro cao (**HIGH RISK**) cần can thiệp xử lý ngay: `{high_cont_names}{suffix}`")
 
 # =========================================================
-# 21. FOOTER
+# 11. BẢNG DỮ LIỆU & PHÂN TÍCH CHI TIẾT
 # =========================================================
 st.markdown("---")
-st.caption(
-    "COLDGUARD AI | Prototype mô phỏng phục vụ nghiên cứu và trình diễn đề án"
-)
+col_left, col_right = st.columns([6, 4])
+
+with col_left:
+    st.markdown("### 🚢 Danh sách xếp hạng rủi ro container")
+    display_cols = [
+        "Container", "Nhiệt độ (°C)", "Độ ẩm (%)",
+        "Thời gian chờ (giờ)", "Thời gian vận chuyển (giờ)",
+        "Tình trạng nguồn điện", "Risk Score", "Risk Level"
+    ]
+    sorted_df = filtered_df[display_cols].sort_values("Risk Score", ascending=False)
+    
+    def color_risk(val):
+        if val == 'HIGH RISK':
+            return 'background-color: #fee2e2; color: #991b1b; font-weight: bold;'
+        elif val == 'MEDIUM RISK':
+            return 'background-color: #fef3c7; color: #92400e; font-weight: bold;'
+        elif val == 'LOW RISK':
+            return 'background-color: #dcfce7; color: #166534; font-weight: bold;'
+        return ''
+
+    styler = sorted_df.style
+    if hasattr(styler, 'map'):
+        styled_df = styler.map(color_risk, subset=['Risk Level'])
+    else:
+        styled_df = styler.applymap(color_risk, subset=['Risk Level'])
+
+    st.dataframe(
+        styled_df,
+        use_container_width=True,
+        height=380,
+        hide_index=True
+    )
+
+
+with col_right:
+    st.markdown("### 📈 Biểu đồ Cold Chain Risk Score")
+    if not filtered_df.empty:
+        # Giới hạn top 15 container nếu tập dữ liệu quá lớn
+        chart_df = filtered_df.sort_values("Risk Score", ascending=False).head(15)
+        fig_bar = px.bar(
+            chart_df,
+            x="Container",
+            y="Risk Score",
+            color="Risk Level",
+            color_discrete_map={
+                "HIGH RISK": "#ef4444",
+                "MEDIUM RISK": "#f59e0b",
+                "LOW RISK": "#10b981"
+            },
+            text="Risk Score",
+            title=f"Top {len(chart_df)} Container có rủi ro cao nhất"
+        )
+        fig_bar.update_traces(textposition="outside")
+        fig_bar.update_layout(yaxis=dict(range=[0, 105]), margin=dict(l=20, r=20, t=40, b=20), height=380)
+        st.plotly_chart(fig_bar, use_container_width=True)
+    else:
+        st.warning("Không có container nào phù hợp với bộ lọc hiện tại.")
+
+# =========================================================
+# 12. PHÂN TÍCH TƯƠNG QUAN & CÁC YẾU TỐ RỦI RO
+# =========================================================
+st.markdown("---")
+st.markdown("### 🔍 Phân tích chuyên sâu các yếu tố chuỗi lạnh")
+
+tab1, tab2 = st.tabs(["📊 Phân bố tương quan Nhiệt độ & Thời gian chờ", "⚖️ Trọng số thuật toán"])
+
+with tab1:
+    if not df.empty:
+        fig_scatter = px.scatter(
+            df,
+            x="Thời gian chờ (giờ)",
+            y="Nhiệt độ (°C)",
+            color="Risk Level",
+            size="Risk Score",
+            hover_name="Container",
+            color_discrete_map={
+                "HIGH RISK": "#ef4444",
+                "MEDIUM RISK": "#f59e0b",
+                "LOW RISK": "#10b981"
+            },
+            title="Mối liên hệ giữa Thời gian chờ bãi và Nhiệt độ khoang lạnh"
+        )
+        # Thêm đường ngưỡng cảnh báo
+        fig_scatter.add_hline(y=8.0, line_dash="dash", line_color="red", annotation_text="Ngưỡng nguy hiểm (8°C)")
+        fig_scatter.add_vline(x=24.0, line_dash="dash", line_color="orange", annotation_text="Ngưỡng chờ tối đa (24h)")
+        fig_scatter.update_layout(height=400)
+        st.plotly_chart(fig_scatter, use_container_width=True)
+
+with tab2:
+    factor_df = pd.DataFrame({
+        "Yếu tố": ["Nhiệt độ khoang lạnh", "Thời gian chờ thông quan", "Thời gian vận chuyển", "Độ ẩm khoang", "Tình trạng nguồn điện"],
+        "Trọng số (%)": [35, 25, 15, 15, 10]
+    })
+    fig_factor = px.pie(
+        factor_df,
+        values="Trọng số (%)",
+        names="Yếu tố",
+        title="Tỷ trọng ảnh hưởng của từng yếu tố tới Cold Chain Risk Score",
+        hole=0.4,
+        color_discrete_sequence=px.colors.sequential.Blues_r
+    )
+    fig_factor.update_layout(height=400)
+    st.plotly_chart(fig_factor, use_container_width=True)
+
+# =========================================================
+# 13. TRA CỨU CHI TIẾT & HỆ THỐNG KHUYẾN NGHỊ (RECOMMENDATION)
+# =========================================================
+st.markdown("---")
+st.markdown("### 🔎 Kiểm tra chi tiết & Hệ thống khuyến nghị từng Container")
+
+container_list = df["Container"].tolist()
+if container_list:
+    sel_col1, sel_col2 = st.columns([1, 2])
+    with sel_col1:
+        selected_container = st.selectbox("Chọn container cần tra cứu:", container_list)
+    
+    selected_row = df[df["Container"] == selected_container].iloc[0]
+
+    detail_col1, detail_col2 = st.columns(2)
+
+    with detail_col1:
+        st.markdown(f"#### 📋 Thông số kỹ thuật Container `{selected_container}`")
+        st.write(f"• **Nhiệt độ hiện tại:** `{selected_row['Nhiệt độ (°C)']} °C`")
+        st.write(f"• **Độ ẩm khoang:** `{selected_row['Độ ẩm (%)']} %`")
+        st.write(f"• **Thời gian chờ tại bãi/cửa khẩu:** `{selected_row['Thời gian chờ (giờ)']} giờ`")
+        st.write(f"• **Thời gian vận chuyển trên đường:** `{selected_row['Thời gian vận chuyển (giờ)']} giờ`")
+        st.write(f"• **Tình trạng nguồn điện làm lạnh:** `{selected_row['Tình trạng nguồn điện']}`")
+
+    with detail_col2:
+        st.markdown("#### 🧠 Đánh giá & Khuyến nghị hành động của AI")
+        curr_score = selected_row["Risk Score"]
+        curr_level = selected_row["Risk Level"]
+
+        if curr_level == "HIGH RISK":
+            st.markdown(f'<div class="risk-tag-high">🔴 {curr_level} ({curr_score}/100) - NGUY CƠ CAO</div>', unsafe_allow_html=True)
+        elif curr_level == "MEDIUM RISK":
+            st.markdown(f'<div class="risk-tag-medium">🟡 {curr_level} ({curr_score}/100) - CẦN THEO DÕI</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="risk-tag-low">🟢 {curr_level} ({curr_score}/100) - AN TOÀN</div>', unsafe_allow_html=True)
+
+        st.markdown(
+            f"""
+            <div class="info-box" style="margin-top: 15px;">
+                <b>Hành động đề xuất từ COLDGUARD AI:</b><br>
+                {selected_row["Recommendation"]}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+# =========================================================
+# 14. XUẤT BÁO CÁO (DOWNLOAD DATA)
+# =========================================================
+st.markdown("---")
+st.markdown("### 📥 Xuất kết quả phân tích")
+
+export_cols = [
+    "Container", "Nhiệt độ (°C)", "Độ ẩm (%)", "Thời gian chờ (giờ)",
+    "Thời gian vận chuyển (giờ)", "Tình trạng nguồn điện",
+    "Risk Score", "Risk Level", "Recommendation"
+]
+export_df = df[export_cols]
+
+buf = io.BytesIO()
+with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+    export_df.to_excel(writer, index=False, sheet_name="ColdGuard_Analysis")
+excel_data = buf.getvalue()
+
+csv_data = export_df.to_csv(index=False).encode("utf-8-sig")
+
+btn_col1, btn_col2, _ = st.columns([2, 2, 4])
+with btn_col1:
+    st.download_button(
+        label="⬇️ Tải kết quả phân tích (CSV)",
+        data=csv_data,
+        file_name="coldguard_ket_qua_phan_tich.csv",
+        mime="text/csv"
+    )
+with btn_col2:
+    st.download_button(
+        label="⬇️ Tải kết quả phân tích (Excel .xlsx)",
+        data=excel_data,
+        file_name="coldguard_ket_qua_phan_tich.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+# =========================================================
+# 15. FOOTER
+# =========================================================
+st.markdown("---")
+st.caption("❄️ COLDGUARD AI | Hệ thống dự báo và quản trị rủi ro chuỗi lạnh xuất khẩu | Hỗ trợ CSV, Excel & Phân tích tự động")
