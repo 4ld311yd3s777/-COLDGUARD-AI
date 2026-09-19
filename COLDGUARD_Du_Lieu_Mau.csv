@@ -1,0 +1,11 @@
+﻿Container,Nhiệt độ (°C),Độ ẩm (%),Thời gian chờ (giờ),Làm lạnh
+MG001,4.2,82,16,Bình thường
+MG002,5.0,84,22,Bình thường
+MG003,7.1,88,32,Bình thường
+MG004,4.5,80,18,Bình thường
+MG005,9.4,93,48,Bất thường
+MG006,5.3,83,14,Bình thường
+MG007,6.8,87,30,Bình thường
+MG008,8.6,92,42,Bất thường
+MG009,4.9,81,20,Bình thường
+MG010,6.2,86,28,Bình thường
