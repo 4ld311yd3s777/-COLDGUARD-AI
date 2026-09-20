@@ -190,9 +190,9 @@ default_demo_data = {
 # =========================================================
 # 4. HÀM TÍNH TOÁN RISK SCORE & PHÂN LOẠI
 # =========================================================
-def compute_risk_score(temp, hum, wait_time, cooling_status):
+def compute_risk_breakdown(temp, hum, wait_time, cooling_status):
     """
-    Tính toán Cold Chain Risk Score (0 - 100):
+    Tính toán phân rã Cold Chain Risk Score (0 - 100):
     - Nhiệt độ: <= 6°C: 0đ | 6 - 8°C: 25đ | > 8°C: 40đ
     - Độ ẩm: <= 85%: 0đ | 85 - 90%: 10đ | > 90%: 15đ
     - Thời gian chờ: <= 24h: 0đ | 24 - 36h: 15đ | > 36h: 25đ
@@ -243,7 +243,16 @@ def compute_risk_score(temp, hum, wait_time, cooling_status):
         score_c = 0
 
     total_score = score_t + score_h + score_w + score_c
-    return total_score
+    return {
+        "score_t": score_t,
+        "score_h": score_h,
+        "score_w": score_w,
+        "score_c": score_c,
+        "total_score": total_score
+    }
+
+def compute_risk_score(temp, hum, wait_time, cooling_status):
+    return compute_risk_breakdown(temp, hum, wait_time, cooling_status)["total_score"]
 
 def classify_risk_level(score):
     """
@@ -390,6 +399,9 @@ def auto_match_col(columns, candidates):
                 return original
     return columns[0] if len(columns) > 0 else None
 
+if "custom_containers" not in st.session_state:
+    st.session_state.custom_containers = []
+
 if uploaded_df is not None and not uploaded_df.empty:
     raw_df = uploaded_df.copy()
     c_list = list(raw_df.columns)
@@ -408,6 +420,24 @@ if uploaded_df is not None and not uploaded_df.empty:
     df["Làm lạnh"] = raw_df[col_cool].fillna("Bình thường").astype(str)
 else:
     df = pd.DataFrame(default_demo_data)
+
+# Bổ sung các container được mô phỏng hoặc thêm từ Case Study (nếu có)
+if st.session_state.custom_containers:
+    for c_item in st.session_state.custom_containers:
+        cid = str(c_item["Container"])
+        if cid in df["Container"].values:
+            idx = df[df["Container"] == cid].index[0]
+            for col in ["Nhiệt độ (°C)", "Độ ẩm (%)", "Thời gian chờ (giờ)", "Làm lạnh"]:
+                df.at[idx, col] = c_item[col]
+        else:
+            new_row_df = pd.DataFrame([{
+                "Container": cid,
+                "Nhiệt độ (°C)": float(c_item["Nhiệt độ (°C)"]),
+                "Độ ẩm (%)": float(c_item["Độ ẩm (%)"]),
+                "Thời gian chờ (giờ)": float(c_item["Thời gian chờ (giờ)"]),
+                "Làm lạnh": str(c_item["Làm lạnh"])
+            }])
+            df = pd.concat([df, new_row_df], ignore_index=True)
 
 # Tính toán điểm rủi ro và các trường chuẩn theo tài liệu LogiPro
 df["Risk Score"] = df.apply(
@@ -651,7 +681,164 @@ with tab_dash:
 # 9. TAB 2: CASE STUDY & CHI TIẾT
 # =========================================================
 with tab_case:
-    st.markdown("### 🥭 Case Study – Xuất khẩu xoài Cát Chu")
+    # -----------------------------------------------------
+    # 9.1. MÔ PHỎNG ĐÁNH GIÁ RỦI RO (THEO GIAO DIỆN HÌNH ẢNH)
+    # -----------------------------------------------------
+    st.markdown("## 🥭 Case Study – Xuất khẩu xoài tại cửa khẩu Lào Cai")
+    st.markdown(
+        "<p style='color: #475569; font-size: 15px; margin-top: -6px; margin-bottom: 22px;'>"
+        "Nhập thông số container để COLDGUARD AI mô phỏng đánh giá rủi ro."
+        "</p>",
+        unsafe_allow_html=True
+    )
+
+    col_input, col_output = st.columns([1, 1.2], gap="large")
+
+    with col_input:
+        st.markdown("#### 📝 Thông số Container")
+        cs_container_id = st.text_input("Mã Container", value="MG006", key="cs_cid")
+        cs_temp = st.number_input("🌡️ Nhiệt độ (°C)", value=8.00, step=0.50, format="%.2f", key="cs_t")
+        cs_hum = st.number_input("💧 Độ ẩm (%)", value=90.00, step=1.00, min_value=0.0, max_value=100.0, format="%.2f", key="cs_h")
+        cs_wait = st.number_input("⏱️ Thời gian chờ (giờ)", value=48.00, step=1.00, min_value=0.0, format="%.2f", key="cs_w")
+        cs_cooling_val = st.selectbox("❄️ Trạng thái làm lạnh", ["Bình thường", "Bất thường (Mất điện / Hỏng máy)"], index=0, key="cs_c")
+        
+        analyze_btn = st.button("🔍 PHÂN TÍCH RỦI RO", use_container_width=True)
+        if analyze_btn:
+            st.toast(f"Đã hoàn thành phân tích rủi ro cho Container {cs_container_id}!", icon="🔍")
+
+        # Nút tích hợp đồng bộ dữ liệu vào Dashboard
+        sync_btn = st.button("➕ Thêm / Cập nhật vào Dashboard", use_container_width=True, help="Lưu thông số container này vào danh sách theo dõi chung")
+        if sync_btn:
+            found = False
+            for item in st.session_state.custom_containers:
+                if str(item["Container"]) == str(cs_container_id):
+                    item["Nhiệt độ (°C)"] = cs_temp
+                    item["Độ ẩm (%)"] = cs_hum
+                    item["Thời gian chờ (giờ)"] = cs_wait
+                    item["Làm lạnh"] = cs_cooling_val
+                    found = True
+                    break
+            if not found:
+                st.session_state.custom_containers.append({
+                    "Container": cs_container_id,
+                    "Nhiệt độ (°C)": cs_temp,
+                    "Độ ẩm (%)": cs_hum,
+                    "Thời gian chờ (giờ)": cs_wait,
+                    "Làm lạnh": cs_cooling_val
+                })
+            st.success(f"✅ Đã đồng bộ Container {cs_container_id} vào hệ thống giám sát Dashboard!")
+            if hasattr(st, "rerun"):
+                st.rerun()
+
+    # Tính toán kết quả đánh giá rủi ro từ mô hình COLDGUARD AI
+    cs_breakdown = compute_risk_breakdown(cs_temp, cs_hum, cs_wait, cs_cooling_val)
+    cs_score = cs_breakdown["total_score"]
+    cs_level = classify_risk_level(cs_score)
+    cs_priority = classify_priority(cs_score)
+    cs_data = {
+        "Container": cs_container_id,
+        "Nhiệt độ (°C)": cs_temp,
+        "Độ ẩm (%)": cs_hum,
+        "Thời gian chờ (giờ)": cs_wait,
+        "Làm lạnh": cs_cooling_val,
+        "Risk Score": cs_score
+    }
+    cs_cause = determine_primary_cause(cs_data)
+    cs_rec = get_recommendation(cs_data)
+
+    with col_output:
+        st.markdown(f"#### 📊 Kết quả Phân tích Rủi ro: **{cs_container_id}**")
+
+        # Banner phân loại trạng thái rủi ro
+        if cs_level == "High Risk":
+            banner_html = (
+                f"<div style='background-color: #fef2f2; border: 1px solid #fecaca; border-left: 5px solid #ef4444; "
+                f"border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;'>"
+                f"<div style='font-size: 16px; font-weight: 700; color: #991b1b;'>🔴 RỦI RO CAO (HIGH RISK) — {cs_score}/100 ĐIỂM</div>"
+                f"<div style='font-size: 13.5px; color: #7f1d1d; margin-top: 4px; font-weight: 500;'>"
+                f"Phân luồng ưu tiên Cold Chain: <b>{cs_priority} (Ưu tiên xử lý khẩn cấp + Đưa ngay vào kho lạnh)</b>"
+                f"</div></div>"
+            )
+        elif cs_level == "Warning":
+            banner_html = (
+                f"<div style='background-color: #fffbeb; border: 1px solid #fef3c7; border-left: 5px solid #f59e0b; "
+                f"border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;'>"
+                f"<div style='font-size: 16px; font-weight: 700; color: #92400e;'>🟡 MỨC CẢNH BÁO (WARNING) — {cs_score}/100 ĐIỂM</div>"
+                f"<div style='font-size: 13.5px; color: #78350f; margin-top: 4px; font-weight: 500;'>"
+                f"Phân luồng ưu tiên Cold Chain: <b>{cs_priority} (Tăng cường giám sát + Bố trí bảo quản bổ sung)</b>"
+                f"</div></div>"
+            )
+        else:
+            banner_html = (
+                f"<div style='background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #22c55e; "
+                f"border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;'>"
+                f"<div style='font-size: 16px; font-weight: 700; color: #166534;'>🟢 MỨC AN TOÀN (NORMAL) — {cs_score}/100 ĐIỂM</div>"
+                f"<div style='font-size: 13.5px; color: #14532d; margin-top: 4px; font-weight: 500;'>"
+                f"Phân luồng ưu tiên Cold Chain: <b>{cs_priority} (Duy trì chế độ giám sát và thủ tục tiêu chuẩn)</b>"
+                f"</div></div>"
+            )
+        st.markdown(banner_html, unsafe_allow_html=True)
+
+        # 3 thẻ KPI số liệu
+        mk1, mk2, mk3 = st.columns(3)
+        with mk1:
+            st.metric("Điểm rủi ro (Risk)", f"{cs_score}/100")
+        with mk2:
+            st.metric("Phân luồng Priority", cs_priority)
+        with mk3:
+            st.metric("Nguyên nhân", "Đa yếu tố" if "&" in cs_cause else cs_cause)
+
+        # Bảng chi tiết phân rã điểm thành phần
+        breakdown_html = f"""
+        <table class='custom-table' style='margin-top: 12px; font-size: 13px;'>
+            <thead>
+                <tr>
+                    <th>Thông số</th>
+                    <th>Giá trị đo</th>
+                    <th>Ngưỡng chuẩn</th>
+                    <th>Điểm cộng dồn</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>🌡️ Nhiệt độ</td>
+                    <td><b>{cs_temp:.2f} °C</b></td>
+                    <td>4.0 – 6.0 °C</td>
+                    <td><span style='color: {"#ef4444" if cs_breakdown["score_t"] > 0 else "#10b981"}; font-weight: 600;'>+{cs_breakdown['score_t']} đ</span></td>
+                </tr>
+                <tr>
+                    <td>💧 Độ ẩm</td>
+                    <td><b>{cs_hum:.2f} %</b></td>
+                    <td>80 – 85 %</td>
+                    <td><span style='color: {"#ef4444" if cs_breakdown["score_h"] > 0 else "#10b981"}; font-weight: 600;'>+{cs_breakdown['score_h']} đ</span></td>
+                </tr>
+                <tr>
+                    <td>⏱️ Thời gian chờ</td>
+                    <td><b>{cs_wait:.2f} h</b></td>
+                    <td>≤ 24 giờ</td>
+                    <td><span style='color: {"#ef4444" if cs_breakdown["score_w"] > 0 else "#10b981"}; font-weight: 600;'>+{cs_breakdown['score_w']} đ</span></td>
+                </tr>
+                <tr>
+                    <td>❄️ Làm lạnh</td>
+                    <td><b>{cs_cooling_val}</b></td>
+                    <td>Bình thường</td>
+                    <td><span style='color: {"#ef4444" if cs_breakdown["score_c"] > 0 else "#10b981"}; font-weight: 600;'>+{cs_breakdown['score_c']} đ</span></td>
+                </tr>
+            </tbody>
+        </table>
+        """
+        st.markdown(breakdown_html, unsafe_allow_html=True)
+
+        # Khuyến nghị hành động AI
+        st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+        st.info(f"💡 **Khuyến nghị xử lý COLDGUARD AI:**\n\n{cs_rec}")
+
+    st.markdown("---")
+
+    # -----------------------------------------------------
+    # 9.2. NỘI DUNG GỐC: BỐI CẢNH VÀ KIỂM TRA TỪNG CONTAINER CÓ SẴN
+    # -----------------------------------------------------
+    st.markdown("### 📋 Bối cảnh thực tế – Xuất khẩu xoài Cát Chu")
     st.markdown(
         """
         **Bối cảnh thực tế**  
